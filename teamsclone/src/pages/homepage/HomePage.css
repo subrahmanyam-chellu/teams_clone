@@ -1,0 +1,25 @@
+@keyframes slideUpDown {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-30px); 
+  }
+  100% {
+    transform: translateY(0); 
+  }
+}
+
+.slide {
+  width: 50%;
+  height: 50%;
+  animation: slideUpDown 3s infinite;
+}
+
+body{
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif, Arial;
+  background-color: #000000;
+  color:'white';
+}
