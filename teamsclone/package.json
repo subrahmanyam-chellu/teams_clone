@@ -12,8 +12,11 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@fontsource/roboto": "^5.2.10",
+    "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
     "axios": "^1.18.1",
+    "date-fns": "^4.4.0",
     "jwt-decode": "^4.0.0",
     "navigate": "^0.3.6",
     "react": "^19.2.7",

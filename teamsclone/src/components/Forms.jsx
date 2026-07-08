@@ -78,11 +78,7 @@ const Forms = ({ isLogin, setIsLogin, isRegister, setIsRegister }) => {
             if (response.status === 200) {
                 localStorage.setItem("x-token", response.data.data.token);
                 setLoading(false);
-                if(response.data.data.user.role.toLowerCase()==='admin'){
-                    navigate('/admin');
-                }else{
-                    navigate('/user');
-                }
+                navigate('/chat');
                 
             }
         } catch (err) {

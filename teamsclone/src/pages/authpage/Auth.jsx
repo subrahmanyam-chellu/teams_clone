@@ -20,10 +20,8 @@ const Auth = () => {
     useEffect(()=>{
         if(token){
             const decode = jwtDecode(token);
-            if(decode.user.role.toLowerCase()=='user'){
-                navigate('/user');
-            }else {
-                navigate('/admin');
+            if(decode.exp * 1000 > Date.now()){
+                navigate('/chat');
             }
         }
     },[]);

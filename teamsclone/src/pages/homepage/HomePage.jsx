@@ -17,6 +17,7 @@ const HomePage = () => {
         minHeight: "100vh", // use minHeight instead of fixed height
         overflow: "hidden", // prevent extra scroll
       }}
+      className="homeBody"
     >
       {/* Left side - Image */}
       <Box
