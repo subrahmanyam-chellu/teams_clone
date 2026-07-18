@@ -6,10 +6,8 @@ import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-const ChatWindow = ({ room, messages, currentUserId, setRoom }) => {
-    console.log(room);
+const ChatWindow2 = ({ room, messages, currentUserId }) => {
     const [replyTo, setReplyTo] = useState(null);
     const [attachments, setAttachments] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -20,13 +18,11 @@ const ChatWindow = ({ room, messages, currentUserId, setRoom }) => {
                 sx={{
                     flexGrow: 1,
                     display: 'flex',
-                    width: 'calc(100vw - 100px)',
                     alignItems: 'center',
                     justifyContent: 'center',
                     backgroundColor: '#1A1A1A',
                     border: '1px solid #666',
                     borderRadius: '15px',
-                    mr: 8
                 }}
             >
                 <Typography sx={{ color: '#aaa', fontStyle: 'italic' }}>
@@ -35,8 +31,6 @@ const ChatWindow = ({ room, messages, currentUserId, setRoom }) => {
             </Box>
         );
     }
-
-    console.log(room);
 
     // Group messages by day
     const grouped = [];
@@ -86,7 +80,7 @@ const ChatWindow = ({ room, messages, currentUserId, setRoom }) => {
         <Box
             sx={{
                 flexGrow: 1,
-                width: 'calc(100vw - 100px)',
+                width: 'calc(100vw - 100px)', 
                 mr: 8,
                 height: 'calc(100vh - 70px)',
                 backgroundColor: '#1A1A1A',
@@ -97,14 +91,9 @@ const ChatWindow = ({ room, messages, currentUserId, setRoom }) => {
             }}
         >
             {/* Header with ConversationItem + search */}
-            <Box sx={{ flexShrink: 0, borderBottom: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, background: "#2A2A2A", borderRadius: '16px 16px 0px 0px' }}>
-                <Box sx={{display:'flex', flexDirection:'row'}}>
-                    <IconButton>
-                        <ArrowBackIcon sx={{ color: 'white', fontSize: '26px', mr:'10px' }} onClick={()=>{setRoom()}} />
-                    </IconButton>
-                    {/* Left side: room details */}
-                    <ConversationItem key={room._id} room={room} isHeader={true} />
-                </Box>
+            <Box sx={{ flexShrink: 0, borderBottom: '1px solid #444', display: 'flex', alignItems: 'center', justifyContent: 'space-between', px:2 }}>
+                {/* Left side: room details */}
+                <ConversationItem key={room._id} room={room} isNew={room.isNew} />
 
                 {/* Right side: search box */}
                 <input
@@ -115,7 +104,7 @@ const ChatWindow = ({ room, messages, currentUserId, setRoom }) => {
                         padding: '8px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: '#111',
+                        backgroundColor: '#333',
                         color: '#fff',
                     }}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -217,4 +206,4 @@ const ChatWindow = ({ room, messages, currentUserId, setRoom }) => {
     );
 };
 
-export default ChatWindow;
+export default ChatWindow2;

@@ -22,7 +22,7 @@
     "joi": "^18.2.3",
     "jsonwebtoken": "^9.0.3",
     "jwt-decode": "^4.0.0",
-    "mongoose": "^9.7.1",
+    "mongoose": "^9.7.4",
     "multer": "^2.2.0",
     "nodemon": "^3.1.14",
     "socket.io": "^4.8.3"

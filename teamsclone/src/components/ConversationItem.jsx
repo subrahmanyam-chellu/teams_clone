@@ -1,21 +1,23 @@
 import React from 'react';
-import { Box, Avatar, Typography, Badge } from '@mui/material';
+import { Box, Avatar, Typography, Badge, IconButton } from '@mui/material';
 import FiberNewIcon from '@mui/icons-material/FiberNew';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-const ConversationItem = ({ room, isNew }) => {
+const ConversationItem = ({ room, isNew, isHeader, onClick }) => {
   return (
     <Box
       sx={{
         maxWidth:'100%',
         display: 'flex',
         alignItems: 'center',
-        p: 1.5,
+        p: isHeader?0:1.5,
         marginY: 1,
         borderRadius: 2,
         bgcolor: '#2A2A2A',
         cursor: 'pointer',
         '&:hover': { bgcolor: '#3A3A3A' },
       }}
+      onClick={onClick}
     >
       {/* Room avatar */}
       <Avatar

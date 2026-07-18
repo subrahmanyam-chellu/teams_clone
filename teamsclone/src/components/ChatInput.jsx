@@ -41,11 +41,14 @@ const ChatInput = ({ onSend, users }) => {
   };
 
   return (
-    <Box sx={{ p: 2, display: 'flex', alignItems: 'center', backgroundColor: '#222' }}>
-      <IconButton sx={{ color: '#fff' }}>
-        <AttachFileIcon />
-      </IconButton>
-      <TextField
+    <Box sx={{
+      display: 'flex',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      width: '100%',
+      borderRadius: '15px'
+    }}>
+      {/* <TextField
         value={text}
         onChange={handleChange}
         placeholder="Type a message"
@@ -53,14 +56,28 @@ const ChatInput = ({ onSend, users }) => {
         fullWidth
         size="small"
         sx={{
-          input: { color: '#fff' },
           '& .MuiOutlinedInput-root': {
-            '& fieldset': { borderColor: '#555' },
+            '& input': { color: 'white', backgroundColor:'white' },
+            '& fieldset': { borderColor: '#555', bgcolor: '#111', borderRadius: '15px' },
             '&:hover fieldset': { borderColor: '#888' },
-            '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+            '&.Mui-focused fieldset': { borderColor: '#666' },
+            '& .MuiInputBase-input': {
+              color: 'white',      // ✅ placeholder gray
+              opacity: 1,
+            },
           },
+          
         }}
-      />
+      /> */}
+      <input  value={text}
+        onChange={handleChange}
+        placeholder="Type a message"
+        variant="outlined"
+        fullWidth
+        size="small" style={{ background:'#222', border:'1px solid  #666', width:'100%', height
+          :'40px', borderRadius:'15px', color:'white', fontSize:'18px', fontFamily:'sans-serif'
+        }}>
+      </input>
       <IconButton sx={{ ml: 1, color: '#fff' }} onClick={handleSend}>
         <SendIcon />
       </IconButton>

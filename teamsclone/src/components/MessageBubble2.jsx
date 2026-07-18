@@ -6,7 +6,7 @@ import ThumbUpAltIcon from '@mui/icons-material/ThumbUpAlt';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 
-const MessageBubble = ({ message, isSender, onReply, onReact }) => {
+const MessageBubble2 = ({ message, isSender, onReply, onReact }) => {
   const handleDownload = (url, fileName) => {
     const link = document.createElement('a');
     link.href = url;
@@ -225,4 +225,4 @@ const MessageBubble = ({ message, isSender, onReply, onReact }) => {
   );
 };
 
-export default MessageBubble;
+export default MessageBubble2;

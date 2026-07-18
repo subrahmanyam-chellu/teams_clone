@@ -54,38 +54,38 @@ const Forms = ({ isLogin, setIsLogin, isRegister, setIsRegister }) => {
     }
 
     const handleRegister = async (e) => {
-         e.preventDefault();
-         setLoading(true);
-        try {
-            const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/signup`, { firstName, lastName, phoneNo, email, password , role});
-            if (response.status === 201) {
-                alert("Registered successfully.");
-                setLoading(false);
-                navigate('/auth');
-            }
-        } catch (err) {
-            setError(`Registration failed error: ${err.message}`);
-            setLoading(false);
-        }
-    };
+          e.preventDefault();
+          setLoading(true);
+         try {
+             const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/signup`, { firstName, lastName, phoneNo, email, password , role});
+             if (response.status === 201) {
+                 alert("Registered successfully.");
+                 setLoading(false);
+                 navigate('/auth');
+             }
+         } catch (err) {
+             setError(`Registration failed error: ${err.message}`);
+             setLoading(false);
+         }
+     };
 
     const handleLogin = async (e) => {
-         e.preventDefault();
-         setLoading(true);
-        try {
-            const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/login`, { email, password });
-            console.log("login response", response);
-            if (response.status === 200) {
-                localStorage.setItem("x-token", response.data.data.token);
-                setLoading(false);
-                navigate('/chat');
-                
-            }
-        } catch (err) {
-            setErrorL(`Login failed. ${err.message}`);
-            setLoading(false);
-        }
-    };
+          e.preventDefault();
+          setLoading(true);
+         try {
+             const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/login`, { email, password });
+             console.log("login response", response);
+             if (response.status === 200) {
+                 localStorage.setItem("x-token", response.data.data.token);
+                 setLoading(false);
+                 navigate('/chat');
+                 
+             }
+         } catch (err) {
+             setErrorL(`Login failed. ${err.message}`);
+             setLoading(false);
+         }
+     };
 
     useEffect(() => { validate(); }, [firstName, lastName, phoneNo, email, password, repassword]);
 
