@@ -1,5 +1,5 @@
 const ErrorHandler = require("../../helper/ErrorHandler");
-const statusCodes = require("../../helper/statusCodes");
+const { statusCodes } = require("../../helper/statusCodes");
 const Messages = require("../../models/Messages");
 const cloudinary = require("../../config/cloudinary");
 const Rooms = require("../../models/Rooms");
@@ -12,6 +12,10 @@ const sendMessage = async (data) => {
             return new ErrorHandler(statusCodes.CONFLICT, "sender and sender id is not same");
         if (!room)
             return new ErrorHandler(statusCodes.NOT_FOUND, "room is not found");
+
+        if (!data.body.parentMessageId || data.body.parentMessageId === "" || data.body.parentMessageId === "null" || data.body.parentMessageId === "undefined") {
+            delete data.body.parentMessageId;
+        }
         // if (data.body.files) {
 
         //     const fileStr = `data:${data.file.mimetype};base64,${data.body.file.buffer.toString("base64")}`;
@@ -76,7 +80,7 @@ const editMessage = async (data) => {
         const message = await Messages.findById(data.params.id);
         if (!message)
             return new ErrorHandler(statusCodes.NOT_FOUND, "message is not found");
-        if ((data.user.id === message.sender.toString()) || (data.user.role !== "admin")) {
+        if (data.user.id === message.sender.toString() || data.user.role === "ADMIN") {
             const result = await Messages.findByIdAndUpdate(data.params.id, { $set: { content: data.body.content } }, { returnDocument: "after" });
             return { statusCode: statusCodes.OK, data: result, message: "message updated successfully" };
         }
@@ -93,7 +97,7 @@ const deleteMessage = async (data) => {
         const message = await Messages.findById(data.params.id);
         if (!message)
             return new ErrorHandler(statusCodes.NOT_FOUND, "message is not found");
-        if ((data.user.id === message.sender.toString()) || (data.user.role !== "admin")) {
+        if (data.user.id === message.sender.toString() || data.user.role === "ADMIN") {
             const result = await Messages.findByIdAndDelete(data.params.id);
             return { statusCode: statusCodes.OK, data: result, message: "message deleted successfully" };
         }
@@ -110,7 +114,7 @@ const reactMessage = async (data) => {
         const message = await Messages.findById(data.params.id);
         if (!message)
             return new ErrorHandler(statusCodes.NOT_FOUND, "message is not found");
-        const result = await Messages.findByIdAndUpdate(data.params.id, { $push: { reactions: { sender: data.body.sender, emoji: data.body.emoji } } }, { returnDocument: "after" });
+        const result = await Messages.findByIdAndUpdate(data.params.id, { $push: { reactions: { userId: data.body.userId || data.body.sender, sender: data.body.sender || data.body.userId, emoji: data.body.emoji } } }, { returnDocument: "after" });
         return { statusCode: statusCodes.OK, data: result, message: "message updated successfully" };
     } catch (error) {
         return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
@@ -123,11 +127,15 @@ const getMessagesByRoomId = async (data) => {
         const rooms = await Rooms.findById(data.params.roomId);
         if (!rooms)
             return new ErrorHandler(statusCodes.NOT_FOUND, "room is not found");
-        else if ((!rooms.members.includes(data.user.id)) || (data.user.role !== "ADMIN")) {
+        else if (!rooms.members.some(m => m.toString() === data.user.id) && data.user.role !== "ADMIN") {
             return new ErrorHandler(statusCodes.FORBIDDEN, "you are not a member of this room");
         }
-        const result = await Messages.find({roomId: data.params.roomId}).sort({ createdAt: -1 }).skip((data.body.page - 1) * data.body.limit).limit(data.body.limit);
-        const count = await Messages.countDocuments({roomId: data.params.id});
+        const result = await Messages.find({ roomId: data.params.roomId })
+            .populate("sender", "firstName lastName email profilePicture")
+            .sort({ createdAt: -1 })
+            .skip((data.body.page - 1) * data.body.limit)
+            .limit(data.body.limit);
+        const count = await Messages.countDocuments({roomId: data.params.roomId});
         return { statusCode: statusCodes.OK, data: {result, count}, message: "message fetched successfully" };
     } catch (error) {
         return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);

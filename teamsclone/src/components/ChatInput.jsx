@@ -3,7 +3,7 @@ import { Box, TextField, IconButton, Popper, List, ListItem, ListItemText } from
 import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 
-const ChatInput = ({ onSend, users }) => {
+const ChatInput = ({ onSend, users, hasAttachments }) => {
   const [text, setText] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -14,9 +14,16 @@ const ChatInput = ({ onSend, users }) => {
 
     // Detect @mention
     const match = value.match(/@(\w*)$/);
-    if (match) {
+    if (match && users && Array.isArray(users)) {
       const query = match[1].toLowerCase();
-      const results = users.filter(u => u.username.toLowerCase().startsWith(query));
+      const results = users.filter(u => {
+        if (!u) return false;
+        const username = (u.username || '').toLowerCase();
+        const firstName = (u.firstName || '').toLowerCase();
+        const lastName = (u.lastName || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        return username.startsWith(query) || firstName.startsWith(query) || lastName.startsWith(query) || fullName.startsWith(query);
+      });
       setFilteredUsers(results);
       setAnchorEl(e.currentTarget);
     } else {
@@ -26,17 +33,23 @@ const ChatInput = ({ onSend, users }) => {
   };
 
   const handleSelectUser = (user) => {
-    // Replace @query with full username
-    const newText = text.replace(/@\w*$/, `@${user.username} `);
+    const name = user.username || `${user.firstName || ''}${user.lastName || ''}`.trim() || 'user';
+    const newText = text.replace(/@\w*$/, `@${name} `);
     setText(newText);
     setFilteredUsers([]);
     setAnchorEl(null);
   };
 
   const handleSend = () => {
-    if (text.trim()) {
-      onSend({ text, attachments: [] });
+    if (text.trim() || hasAttachments) {
+      onSend({ content: text, text, attachments: [] });
       setText('');
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSend();
     }
   };
 
@@ -71,6 +84,7 @@ const ChatInput = ({ onSend, users }) => {
       /> */}
       <input  value={text}
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         placeholder="Type a message"
         variant="outlined"
         fullWidth
@@ -83,13 +97,16 @@ const ChatInput = ({ onSend, users }) => {
       </IconButton>
 
       {/* Mentions dropdown */}
-      <Popper open={filteredUsers.length > 0} anchorEl={anchorEl} placement="top-start">
-        <List sx={{ bgcolor: '#333', color: '#fff', borderRadius: 1 }}>
-          {filteredUsers.map(user => (
-            <ListItem button key={user._id} onClick={() => handleSelectUser(user)}>
-              <ListItemText primary={`@${user.username}`} />
-            </ListItem>
-          ))}
+      <Popper open={filteredUsers.length > 0} anchorEl={anchorEl} placement="top-start" sx={{ zIndex: 1300 }}>
+        <List sx={{ bgcolor: '#222', border: '1px solid #444', color: '#fff', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', py: 0.5, minWidth: '150px' }}>
+          {filteredUsers.map(user => {
+            const displayName = user.username || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User';
+            return (
+              <ListItem button key={user._id} onClick={() => handleSelectUser(user)} sx={{ '&:hover': { bgcolor: '#333' }, py: 1, px: 2 }}>
+                <ListItemText primary={`@${displayName}`} primaryTypographyProps={{ sx: { color: '#fff', fontSize: '0.9rem', fontWeight: 'medium' } }} />
+              </ListItem>
+            );
+          })}
         </List>
       </Popper>
     </Box>

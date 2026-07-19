@@ -71,5 +71,36 @@ const deleteMembers = async(req, res, next)=>{
     }
 };
 
+const getMyRooms = async(req, res, next)=>{
+    try{
+        const result = await roomServices.getMyRooms(req);
+        return {statusCode:result.statusCode, data: result.data, message:result.message};
+    }catch(error){
+        console.log(error);
+        return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+};
 
-module.exports = {createRoom, deleteRoom, updateRoomName, updateRoomProfile, addMembers, deleteMembers};
+//controller for getting invite code
+const getInviteCode = async(req, res, next)=>{
+    try{
+        const result = await roomServices.getInviteCode(req);
+        return {statusCode:result.statusCode, data: result.data, message:result.message};
+    }catch(error){
+        console.log(error);
+        return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+};
+
+//controller for joining room by invite code
+const joinByInviteCode = async(req, res, next)=>{
+    try{
+        const result = await roomServices.joinByInviteCode(req);
+        return {statusCode:result.statusCode, data: result.data, message:result.message};
+    }catch(error){
+        console.log(error);
+        return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+};
+
+module.exports = {createRoom, deleteRoom, updateRoomName, updateRoomProfile, addMembers, deleteMembers, getMyRooms, getInviteCode, joinByInviteCode};

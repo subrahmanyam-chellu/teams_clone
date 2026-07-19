@@ -1,38 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
-import ConversationItem from '../components/ConversationItem';
+import ConversationItem from './ConversationItem';
+import axios from 'axios';
+import socket from './Socket';
 
-const ConversationsList = ({setRoom}) => {
+const mapRoom = (room, currentUser) => {
+  const isGroup = room.roomType === 'group';
+  const otherMember = !isGroup ? room.members?.find(m => {
+    if (!m) return false;
+    const memberId = m._id?.toString() || m?.toString();
+    const currentId = currentUser?._id?.toString() || currentUser?.id?.toString();
+    return memberId !== currentId;
+  }) : null;
+  const name = isGroup ? room.roomName : (otherMember ? `${otherMember.firstName} ${otherMember.lastName}` : room.roomName || 'Direct Message');
+  const profilePic = isGroup ? room.roomProfile : (otherMember ? otherMember.profilePicture : '');
+  
+  let lastMessageText = 'No messages yet';
+  if (room.lastMessage) {
+    if (typeof room.lastMessage === 'object') {
+      lastMessageText = room.lastMessage.content || (room.lastMessage.mediaUrl && room.lastMessage.mediaUrl.length > 0 ? 'Attachment' : '');
+    } else {
+      lastMessageText = room.lastMessage;
+    }
+  }
+
+  return {
+    ...room,
+    name,
+    profilePic,
+    lastMessage: lastMessageText
+  };
+};
+
+const ConversationsList = ({ setRoom, activeRoomId, refreshTrigger }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [rooms, setRooms] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const [rooms] = useState([
-    {
-      _id: "room1",
-      name: "Alice & Bob",
-      profilePic: "https://i.pravatar.cc/150?img=3",
-      lastMessage: "Hey Bob! How are you?",
-      isNew: true,
-    },
-    {
-      _id: "room2",
-      name: "Team Project",
-      profilePic: "https://i.pravatar.cc/150?img=4",
-      lastMessage: "Meeting at 5 PM",
-      isNew: false,
-    },
-    {
-      _id: "room3",
-      name: "Family Group",
-      profilePic: "https://i.pravatar.cc/150?img=5",
-      lastMessage: "Dinner is ready 🍲",
-      isNew: true,
-    },
-  ]);
+  // Load current user from localStorage on mount
+  useEffect(() => {
+    const userObj = JSON.parse(localStorage.getItem("user") || "null");
+    setCurrentUser(userObj);
+  }, []);
 
-  // Filter rooms by search term (name or lastMessage)
+  const fetchRooms = async (currentUserObj) => {
+    try {
+      const token = localStorage.getItem("x-token");
+      const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/v1/rooms/my-rooms`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.status === 200) {
+        const mapped = response.data.data.map(r => mapRoom(r, currentUserObj));
+        setRooms(mapped);
+        
+        // Auto-join all socket channels for real-time sidebar preview updates
+        mapped.forEach(r => {
+          socket.emit("joinRoom", r._id);
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch rooms:", error);
+    }
+  };
+
+  // Fetch rooms on mount, user load, or refreshTrigger update
+  useEffect(() => {
+    if (currentUser) {
+      fetchRooms(currentUser);
+    }
+  }, [currentUser, refreshTrigger]);
+
+  // Listen to socket receiveMessage events to update sidebar
+  useEffect(() => {
+    const handleReceiveMessage = (newMessage) => {
+      setRooms((prevRooms) =>
+        prevRooms.map((r) => {
+          const rId = r._id?.toString() || r._id;
+          const msgRoomId = newMessage.roomId?.toString() || newMessage.roomId;
+          if (rId === msgRoomId) {
+            const hasMedia = newMessage.mediaUrl && newMessage.mediaUrl.length > 0;
+            return {
+              ...r,
+              lastMessage: newMessage.content || (hasMedia ? 'Attachment' : 'Message'),
+              isNew: activeRoomId !== r._id
+            };
+          }
+          return r;
+        })
+      );
+    };
+
+    socket.on("receiveMessage", handleReceiveMessage);
+    return () => {
+      socket.off("receiveMessage", handleReceiveMessage);
+    };
+  }, [activeRoomId]);
+
+  // Filter rooms by search term (name)
   const filteredRooms = rooms.filter(room =>
-    room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    room.name.toLowerCase().includes(searchTerm.toLowerCase())
+    room.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -65,7 +131,7 @@ const ConversationsList = ({setRoom}) => {
           Conversations
         </Typography>
 
-        {/* ✅ Search box beside header */}
+        {/* Search box beside header */}
         <input
           type="text"
           placeholder="Search rooms..."
@@ -90,7 +156,16 @@ const ConversationsList = ({setRoom}) => {
           </Typography>
         ) : (
           filteredRooms.map((room) => (
-            <ConversationItem key={room._id} room={room} isNew={room.isNew} onClick={()=>{setRoom(room)}} />
+            <ConversationItem 
+              key={room._id} 
+              room={room} 
+              isNew={room.isNew} 
+              onClick={() => {
+                setRoom(room);
+                // Clear the isNew flag locally when a room is clicked
+                setRooms(prev => prev.map(r => r._id === room._id ? { ...r, isNew: false } : r));
+              }} 
+            />
           ))
         )}
       </Box>

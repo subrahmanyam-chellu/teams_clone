@@ -23,6 +23,11 @@ const roomsSchema = new mongoose.Schema({
     lastMessage: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Messages"
+    },
+    inviteCode: {
+        type: String,
+        unique: true,
+        sparse: true
     }
 },{timestamps:true});
 

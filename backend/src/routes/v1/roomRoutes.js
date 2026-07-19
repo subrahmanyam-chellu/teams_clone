@@ -19,13 +19,15 @@ const roomSchema = Joi.object({
 //route for room creation
 router.post("/create-room", validate(roomSchema), auth, (req, res, next)=>dispatcher(req, res, next, roomController.createRoom));
 
+//route for getting user rooms
+router.get("/my-rooms", auth, (req, res, next)=>dispatcher(req, res, next, roomController.getMyRooms));
+
 //schema for deleting room
 const deleteSchema = Joi.object({
     id: Joi.string().required()
 });
 //route for deleting room by id
 router.delete("/delete-room/:id", validate(deleteSchema, "params"), auth, (req, res, next)=>dispatcher(req, res, next, roomController.deleteRoom));
-module.exports = router;
 
 //schema for updating room
 const nameSchemaParams = Joi.object({
@@ -63,5 +65,11 @@ const deleteSchemaBody = Joi.object({
 }).unknown(true);
 //route for updating room by id
 router.patch("/delete-members/:id", validate(deleteSchemaParams, "params"), validate(deleteSchemaBody), auth, (req, res, next)=>dispatcher(req, res, next, roomController.deleteMembers));
+
+//route for getting invite code
+router.get("/invite-code/:id", auth, (req, res, next)=>dispatcher(req, res, next, roomController.getInviteCode));
+
+//route for joining room by invite code
+router.post("/join/:inviteCode", auth, (req, res, next)=>dispatcher(req, res, next, roomController.joinByInviteCode));
 
 module.exports = router;

@@ -16,7 +16,7 @@
 // module.exports = { validate };
 const Joi = require("joi");
 const ErrorHandler = require("../helper/ErrorHandler");
-const statusCodes = require("../helper/statusCodes");
+const { statusCodes } = require("../helper/statusCodes");
 
 function validate(schema, property = "body") {
   return (req, res, next) => {

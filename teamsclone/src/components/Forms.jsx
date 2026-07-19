@@ -77,9 +77,11 @@ const Forms = ({ isLogin, setIsLogin, isRegister, setIsRegister }) => {
              console.log("login response", response);
              if (response.status === 200) {
                  localStorage.setItem("x-token", response.data.data.token);
+                 localStorage.setItem("user", JSON.stringify(response.data.data.user));
                  setLoading(false);
-                 navigate('/chat');
-                 
+                 const params = new URLSearchParams(window.location.search);
+                 const redirect = params.get('redirect');
+                 navigate(redirect || '/chat');
              }
          } catch (err) {
              setErrorL(`Login failed. ${err.message}`);

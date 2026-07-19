@@ -12,6 +12,7 @@ const messageRoutes = require("./routes/v1/messageRoutes");
 const Messages = require("./models/Messages");
 const User = require("./models/User");
 const ErrorHandler = require("./helper/ErrorHandler");
+const { statusCodes } = require("./helper/statusCodes");
 
 dotenv.config();
 
@@ -28,6 +29,10 @@ const io = new Server(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/rooms", roomRoutes);
 app.use("/api/v1/messages", messageRoutes);
@@ -42,12 +47,13 @@ io.use(socketAuth);
 // Socket.IO events
 io.on("connection", async (socket) => {
   console.log("New client connected:", socket.id);
+  const userId = socket.user?.id;
   try {
-    const userId = socket.user._id;
-    await User.findByIdAndUpdate(userId, { isOnline: true });
+    if (userId) {
+      await User.findByIdAndUpdate(userId, { isOnline: true });
+    }
   } catch (error) {
     console.log(error.message);
-    return new ErrorHandler({ statusCode: statusCodes.INTERNAL_SERVER_ERROR, message: error.message });
   };
 
   // Join a room
@@ -64,9 +70,13 @@ io.on("connection", async (socket) => {
   // Send a message
   socket.on("sendMessage", async (messageData) => {
     try {
-      const newMessage = await Message.create(messageData);
+      if (!messageData.parentMessageId || messageData.parentMessageId === "" || messageData.parentMessageId === "null" || messageData.parentMessageId === "undefined") {
+        delete messageData.parentMessageId;
+      }
+      const newMessage = await Messages.create(messageData);
+      const populated = await newMessage.populate("sender", "firstName lastName email profilePicture");
 
-      io.to(messageData.roomId).emit("receiveMessage", newMessage);
+      io.to(messageData.roomId).emit("receiveMessage", populated);
     } catch (err) {
       console.error("Error saving message:", err);
       socket.emit("errorMessage", { error: "Message could not be saved" });
@@ -77,7 +87,7 @@ io.on("connection", async (socket) => {
   // Delivery receipt
   socket.on("delivered", async (data) => {
     try {
-      await Message.findByIdAndUpdate(data.messageId, {
+      await Messages.findByIdAndUpdate(data.messageId, {
         $push: {
           deliveryReceipts: {
             userId: data.userId,
@@ -97,7 +107,7 @@ io.on("connection", async (socket) => {
   // Read receipt
   socket.on("read", async (data) => {
     try {
-      await Message.findByIdAndUpdate(data.messageId, {
+      await Messages.findByIdAndUpdate(data.messageId, {
         $push: {
           readReceipts: {
             userId: data.userId,
@@ -114,6 +124,11 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // Reaction update relay
+  socket.on("reaction", (data) => {
+    io.to(data.roomId).emit("messageReaction", data);
+  });
+
   // Typing indicator
   socket.on("typing", (roomId) => {
     socket.to(roomId).emit("userTyping", { userId: socket.id });
@@ -123,23 +138,38 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", async () => {
     console.log("Client disconnected:", socket.id);
     try {
-      await User.findByIdAndUpdate(userId, { isOnline: false, lastActive: new Date() });
-      socket.rooms.forEach((roomId) => {
-        socket.to(roomId).emit("userOffline", {
-          userId,
-          lastSeen: updatedUser.lastActive
+      if (userId) {
+        const lastActiveDate = new Date();
+        await User.findByIdAndUpdate(userId, { isOnline: false, lastActive: lastActiveDate });
+        socket.rooms.forEach((roomId) => {
+          socket.to(roomId).emit("userOffline", {
+            userId,
+            lastSeen: lastActiveDate
+          });
         });
-      });
-
+      }
     } catch (error) {
-      return new ErrorHandler({ statusCode: statusCodes.INTERNAL_SERVER_ERROR, message: error.message });
+      console.error("Disconnect error:", error.message);
     }
-
   });
 });
 
-app.listen(process.env.PORT, () => {
+server.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
 });
 
-db();
+db().then(async () => {
+  try {
+    const rawDocs = await Messages.collection.find({ parentMessageId: { $exists: true, $ne: null } }).toArray();
+    let cleanedCount = 0;
+    for (const doc of rawDocs) {
+      if (doc.parentMessageId && typeof doc.parentMessageId === 'string' && doc.parentMessageId.length !== 24) {
+        await Messages.collection.updateOne({ _id: doc._id }, { $unset: { parentMessageId: "" } });
+        cleanedCount++;
+      }
+    }
+    console.log(`Database sanitized: cleaned up ${cleanedCount} invalid parentMessageId values using raw collection.`);
+  } catch (err) {
+    console.error("Database sanitization error:", err.message);
+  }
+});

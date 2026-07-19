@@ -6,6 +6,10 @@ const messageServices = require("../../services/v1/messageServices");
 const sendMessage = async(req, res, next)=>{
     try{
         const result = await messageServices.sendMessage(req);
+        if (result.statusCode === 201 && result.data) {
+            const populated = await result.data.populate("sender", "firstName lastName email profilePicture");
+            req.io.to(result.data.roomId.toString()).emit("receiveMessage", populated);
+        }
         return {statusCode: result.statusCode, data: result.data, message:result.message};
     }catch(error){
         return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);

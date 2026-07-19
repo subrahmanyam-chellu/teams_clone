@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from './pages/homepage/HomePage'
 import Auth from './pages/authpage/Auth'
 import ChatPage from './pages/chatpage/ChatPage'
+import JoinRoom from './pages/joinroom/JoinRoom'
 import ResponsiveAppBar from './components/ResponsiveAppBar'
 
 
@@ -17,6 +18,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/chat" element={<ChatPage />} />
+        <Route path="/join/:inviteCode" element={<JoinRoom />} />
       </Routes>
     </Router>
     // <ResponsiveAppBar />

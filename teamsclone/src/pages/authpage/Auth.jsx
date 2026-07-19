@@ -18,7 +18,8 @@ const Auth = () => {
     
 
     useEffect(()=>{
-        if(token){
+        const user = localStorage.getItem("user");
+        if(token && user){
             const decode = jwtDecode(token);
             if(decode.exp * 1000 > Date.now()){
                 navigate('/chat');

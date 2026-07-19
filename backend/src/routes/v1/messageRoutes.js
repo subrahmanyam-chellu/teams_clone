@@ -11,9 +11,7 @@ const Joi = require("joi");
 //schema for creating message
 const fileSchema = Joi.object({
   originalname: Joi.string().required(),
-  mimetype: Joi.string()
-    .valid("image/jpeg", "image/png", "application/pdf")
-    .required(),
+  mimetype: Joi.string().required(),
   size: Joi.number().max(5 * 1024 * 1024).required(),
   path: Joi.string().optional()
 }).unknown(true); 
@@ -22,7 +20,7 @@ const messageSchema = Joi.object({
   sender: Joi.string().length(24).required(),
   receiver: Joi.string().length(24).optional(),
   content: Joi.string().trim().allow("").optional(),
-  files: Joi.array().items(fileSchema).max(10).optional(), 
+  files: Joi.array().max(10).optional(), 
   // reactions: Joi.object({
   //     userId: Joi.string().length(24).required(),
   //     emoji: Joi.string().required()
@@ -85,6 +83,7 @@ const reactSchemaParams = Joi.object({
 });
 const reactSchemaBody = Joi.object({
   userId: Joi.string().length(24).required(),
+  sender: Joi.string().length(24).optional(),
   emoji: Joi.string().required()
 });
 //route for reacting to message by id

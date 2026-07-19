@@ -3,11 +3,15 @@ const { statusCodes } = require("../../helper/statusCodes");
 const Rooms = require("../../models/Rooms");
 const cloudinary = require("../../config/cloudinary");
 const upload = require("../../middlewares/upload");
+const crypto = require("crypto");
 
 //creation of room
 const createRoom = async (data) => {
     try {
         const newRoom = new Rooms(data);
+        if (data.roomType === 'group') {
+            newRoom.inviteCode = crypto.randomBytes(16).toString('hex');
+        }
         const result = await newRoom.save();
         if (result)
             return { statusCode: statusCodes.CREATED, message: `${data.roomName} created successfully` };
@@ -173,4 +177,59 @@ const deleteMembers = async (data) => {
     }
 };
 
-module.exports = { createRoom, deleteRoom, updateRoomName, updateRoomProfile, addMembers, deleteMembers };
+const getMyRooms = async (req) => {
+    try {
+        const userId = req.user.id;
+        const rooms = await Rooms.find({ members: userId })
+            .populate("members", "firstName lastName email profilePicture")
+            .populate("lastMessage");
+        return { statusCode: statusCodes.OK, data: rooms, message: "Rooms fetched successfully" };
+    } catch (error) {
+        return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+};
+
+//getting invite code for a room
+const getInviteCode = async (data) => {
+    try {
+        const room = await Rooms.findById(data.params.id);
+        if (!room) return new ErrorHandler(statusCodes.NOT_FOUND, "Room not found");
+        if (room.roomType !== 'group') return new ErrorHandler(statusCodes.BAD_REQUEST, "Invite links are only for group rooms");
+
+        if (!room.inviteCode) {
+            room.inviteCode = crypto.randomBytes(16).toString('hex');
+            await room.save();
+        }
+
+        return { statusCode: statusCodes.OK, data: { inviteCode: room.inviteCode }, message: "Invite code fetched successfully" };
+    } catch (error) {
+        return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+};
+
+//joining room by invite code
+const joinByInviteCode = async (data) => {
+    try {
+        const room = await Rooms.findOne({ inviteCode: data.params.inviteCode });
+        if (!room) return new ErrorHandler(statusCodes.NOT_FOUND, "Invalid invite link");
+
+        const userId = data.user.id;
+        const isMember = room.members.some(m => m.toString() === userId);
+        if (isMember) {
+            return { statusCode: statusCodes.OK, data: room, message: "You are already a member of this group" };
+        }
+
+        room.members.push(userId);
+        await room.save();
+
+        const populatedRoom = await Rooms.findById(room._id)
+            .populate("members", "firstName lastName email profilePicture")
+            .populate("lastMessage");
+
+        return { statusCode: statusCodes.OK, data: populatedRoom, message: "Successfully joined the group" };
+    } catch (error) {
+        return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+};
+
+module.exports = { createRoom, deleteRoom, updateRoomName, updateRoomProfile, addMembers, deleteMembers, getMyRooms, getInviteCode, joinByInviteCode };

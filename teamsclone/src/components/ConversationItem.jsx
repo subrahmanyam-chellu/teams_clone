@@ -4,6 +4,10 @@ import FiberNewIcon from '@mui/icons-material/FiberNew';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const ConversationItem = ({ room, isNew, isHeader, onClick }) => {
+  const name = room?.name || room?.roomName || 'Conversation';
+  const profilePic = room?.profilePic || room?.roomProfile || '';
+  const lastMessageText = room?.lastMessage || 'No messages yet';
+
   return (
     <Box
       sx={{
@@ -21,20 +25,20 @@ const ConversationItem = ({ room, isNew, isHeader, onClick }) => {
     >
       {/* Room avatar */}
       <Avatar
-        src={room.profilePic}
-        alt={room.name}
+        src={profilePic}
+        alt={name}
         sx={{ mr: 2 }}
       >
-        {room.name[0]}
+        {name[0] || 'C'}
       </Avatar>
 
       {/* Room name + last message stacked */}
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography sx={{ color: '#fff', fontWeight: 'bold' }}>
-          {room.name}
+          {name}
         </Typography>
         <Typography sx={{ color: '#aaa', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {room.lastMessage || 'No messages yet'}
+          {lastMessageText}
         </Typography>
       </Box>
 
