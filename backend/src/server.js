@@ -11,6 +11,7 @@ const roomRoutes = require("./routes/v1/roomRoutes");
 const messageRoutes = require("./routes/v1/messageRoutes");
 const Messages = require("./models/Messages");
 const User = require("./models/User");
+const Rooms = require("./models/Rooms");
 const ErrorHandler = require("./helper/ErrorHandler");
 const { statusCodes } = require("./helper/statusCodes");
 
@@ -74,6 +75,12 @@ io.on("connection", async (socket) => {
         delete messageData.parentMessageId;
       }
       const newMessage = await Messages.create(messageData);
+      
+      // Update room lastMessage in DB so it persists on page refresh!
+      await Rooms.findByIdAndUpdate(messageData.roomId, {
+        $set: { lastMessage: newMessage._id }
+      });
+
       const populated = await newMessage.populate("sender", "firstName lastName email profilePicture");
 
       io.to(messageData.roomId).emit("receiveMessage", populated);
@@ -130,8 +137,25 @@ io.on("connection", async (socket) => {
   });
 
   // Typing indicator
-  socket.on("typing", (roomId) => {
-    socket.to(roomId).emit("userTyping", { userId: socket.id });
+  socket.on("typing", (data) => {
+    if (typeof data === "string") {
+      socket.to(data).emit("userTyping", { userId: socket.id });
+    } else if (data && data.roomId) {
+      socket.to(data.roomId).emit("userTyping", {
+        roomId: data.roomId,
+        userId: data.userId,
+        username: data.username
+      });
+    }
+  });
+
+  socket.on("stopTyping", (data) => {
+    if (data && data.roomId) {
+      socket.to(data.roomId).emit("userStopTyping", {
+        roomId: data.roomId,
+        userId: data.userId
+      });
+    }
   });
 
   // Disconnect

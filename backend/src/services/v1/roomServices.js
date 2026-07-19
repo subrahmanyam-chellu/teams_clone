@@ -8,15 +8,32 @@ const crypto = require("crypto");
 //creation of room
 const createRoom = async (data) => {
     try {
+        // For private rooms, check if a room already exists between the same two members
+        if (data.roomType === 'private' && data.members && data.members.length === 2) {
+            const existingRoom = await Rooms.findOne({
+                roomType: 'private',
+                members: { $all: data.members, $size: 2 }
+            })
+            .populate("members", "firstName lastName email profilePicture")
+            .populate("lastMessage");
+
+            if (existingRoom) {
+                return { statusCode: statusCodes.OK, data: existingRoom, message: "Room already exists" };
+            }
+        }
+
         const newRoom = new Rooms(data);
         if (data.roomType === 'group') {
             newRoom.inviteCode = crypto.randomBytes(16).toString('hex');
         }
         const result = await newRoom.save();
-        if (result)
-            return { statusCode: statusCodes.CREATED, message: `${data.roomName} created successfully` };
-        else
-            return { statusCode: statusCodes.CREATED, message: `${data.roomName} created successfully` };
+
+        // Populate the newly created room before returning
+        const populatedRoom = await Rooms.findById(result._id)
+            .populate("members", "firstName lastName email profilePicture")
+            .populate("lastMessage");
+
+        return { statusCode: statusCodes.CREATED, data: populatedRoom, message: `${data.roomName} created successfully` };
 
     } catch (error) {
         return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
@@ -183,7 +200,22 @@ const getMyRooms = async (req) => {
         const rooms = await Rooms.find({ members: userId })
             .populate("members", "firstName lastName email profilePicture")
             .populate("lastMessage");
-        return { statusCode: statusCodes.OK, data: rooms, message: "Rooms fetched successfully" };
+
+        const Messages = require("../../models/Messages");
+        const roomsWithUnread = await Promise.all(rooms.map(async (room) => {
+            const unreadCount = await Messages.countDocuments({
+                roomId: room._id,
+                sender: { $ne: userId },
+                deleted: { $ne: true },
+                "readReceipts.userId": { $ne: userId }
+            });
+            return {
+                ...room.toObject(),
+                unreadCount
+            };
+        }));
+
+        return { statusCode: statusCodes.OK, data: roomsWithUnread, message: "Rooms fetched successfully" };
     } catch (error) {
         return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
     }

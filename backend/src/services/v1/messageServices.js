@@ -81,7 +81,7 @@ const editMessage = async (data) => {
         if (!message)
             return new ErrorHandler(statusCodes.NOT_FOUND, "message is not found");
         if (data.user.id === message.sender.toString() || data.user.role === "ADMIN") {
-            const result = await Messages.findByIdAndUpdate(data.params.id, { $set: { content: data.body.content } }, { returnDocument: "after" });
+            const result = await Messages.findByIdAndUpdate(data.params.id, { $set: { content: data.body.content, edited: true } }, { returnDocument: "after" });
             return { statusCode: statusCodes.OK, data: result, message: "message updated successfully" };
         }
         else
@@ -98,7 +98,7 @@ const deleteMessage = async (data) => {
         if (!message)
             return new ErrorHandler(statusCodes.NOT_FOUND, "message is not found");
         if (data.user.id === message.sender.toString() || data.user.role === "ADMIN") {
-            const result = await Messages.findByIdAndDelete(data.params.id);
+            const result = await Messages.findByIdAndUpdate(data.params.id, { $set: { deleted: true, content: "", mediaUrl: [] } }, { returnDocument: "after" });
             return { statusCode: statusCodes.OK, data: result, message: "message deleted successfully" };
         }
         else

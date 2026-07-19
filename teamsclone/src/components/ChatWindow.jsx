@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, IconButton, LinearProgress, CircularProgress, Dialog, DialogTitle, DialogContent, TextField, List, ListItem, ListItemAvatar, ListItemText, Avatar } from '@mui/material';
+import { Box, Typography, IconButton, LinearProgress, CircularProgress, Dialog, DialogTitle, DialogContent, TextField, List, ListItem, ListItemAvatar, ListItemText, Avatar, Button } from '@mui/material';
 import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 import ConversationItem from './ConversationItem';
 import MessageBubble from './MessageBubble';
@@ -10,6 +10,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LinkIcon from '@mui/icons-material/Link';
+import EditIcon from '@mui/icons-material/Edit';
 import axios from 'axios';
 import socket from './Socket';
 
@@ -19,6 +20,11 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
     const [attachments, setAttachments] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentUser, setCurrentUser] = useState(null);
+
+    // Typing states
+    const [typingUsers, setTypingUsers] = useState([]);
+    const typingTimeoutRef = useRef(null);
+    const isTypingRef = useRef(false);
 
     // Pagination states
     const [page, setPage] = useState(1);
@@ -35,6 +41,10 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
     const [memberSearchQuery, setMemberSearchQuery] = useState('');
     const [foundUsers, setFoundUsers] = useState([]);
     const [searchingUsers, setSearchingUsers] = useState(false);
+    const [uploadingGroupIcon, setUploadingGroupIcon] = useState(false);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [editNameValue, setEditNameValue] = useState('');
+    const [updatingGroupName, setUpdatingGroupName] = useState(false);
 
     // Search users to add to group
     useEffect(() => {
@@ -125,6 +135,80 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
         }
     };
 
+    const handleGroupIconChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingGroupIcon(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const token = localStorage.getItem("x-token");
+            const response = await axios.patch(
+                `${import.meta.env.VITE_BACKEND_URL}/api/v1/rooms/update-room-profile/${room._id}`,
+                formData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "multipart/form-data"
+                    }
+                }
+            );
+
+            if (response.status === 200 && response.data?.data) {
+                const updatedRoom = response.data.data;
+                if (setRoom) {
+                    setRoom(prev => ({
+                        ...prev,
+                        roomProfile: updatedRoom.roomProfile,
+                        profilePic: updatedRoom.roomProfile
+                    }));
+                }
+                alert("Group profile picture updated successfully!");
+            }
+        } catch (error) {
+            console.error("Failed to update group profile picture:", error);
+            alert("Could not update group profile picture. Please try again.");
+        } finally {
+            setUploadingGroupIcon(false);
+        }
+    };
+
+    const handleUpdateGroupName = async () => {
+        if (!editNameValue.trim()) {
+            alert("Group name cannot be empty");
+            return;
+        }
+        setUpdatingGroupName(true);
+        try {
+            const token = localStorage.getItem("x-token");
+            const response = await axios.patch(
+                `${import.meta.env.VITE_BACKEND_URL}/api/v1/rooms/update-room-name/${room._id}`,
+                { roomName: editNameValue.trim() },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (response.status === 200 && response.data?.data) {
+                const updatedRoom = response.data.data;
+                if (setRoom) {
+                    setRoom(prev => ({
+                        ...prev,
+                        roomName: updatedRoom.roomName,
+                        name: updatedRoom.roomName
+                    }));
+                }
+                setIsEditingName(false);
+                alert("Group name updated successfully!");
+            }
+        } catch (error) {
+            console.error("Failed to update group name:", error);
+            alert("Could not update group name. Please try again.");
+        } finally {
+            setUpdatingGroupName(false);
+        }
+    };
+
     const handleCopyInviteLink = async () => {
         try {
             const token = localStorage.getItem("x-token");
@@ -198,6 +282,18 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
         }
     }, [room]);
 
+    // Reset typing status on room switch
+    useEffect(() => {
+        if (isTypingRef.current && room?._id) {
+            socket.emit("stopTyping", { roomId: room._id, userId: currentUser?._id || currentUserId });
+        }
+        isTypingRef.current = false;
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+        setTypingUsers([]);
+    }, [room]);
+
     const loadMoreMessages = async () => {
         if (loadingMore || !hasMore || !room?._id) return;
         setLoadingMore(true);
@@ -262,14 +358,68 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                     const filtered = prev.filter(m => !(m.isTemp && m.content === newMessage.content));
                     return [...filtered, newMessage];
                 });
+
+                // Update parent room's lastMessage so the header ConversationItem updates in real-time
+                if (setRoom) {
+                    const hasMedia = newMessage.mediaUrl && newMessage.mediaUrl.length > 0;
+                    setRoom(prev => {
+                        if (!prev) return prev;
+                        return {
+                            ...prev,
+                            lastMessage: newMessage.content || (hasMedia ? 'Attachment' : 'Message')
+                        };
+                    });
+                }
+            }
+        };
+
+        const handleMessageEdited = (editedMessage) => {
+            const currentRoomId = room?._id?.toString() || room?._id;
+            if (editedMessage.roomId?.toString() === currentRoomId) {
+                setMessages((prev) =>
+                    prev.map((m) => (m._id === editedMessage._id ? editedMessage : m))
+                );
+            }
+        };
+
+        const handleMessageDeleted = (data) => {
+            const currentRoomId = room?._id?.toString() || room?._id;
+            if (data.roomId?.toString() === currentRoomId) {
+                setMessages((prev) =>
+                    prev.map((m) => (m._id === data.messageId ? { ...m, deleted: true, content: "", mediaUrl: [] } : m))
+                );
+            }
+        };
+
+        const handleUserTyping = (data) => {
+            if (data.roomId === room?._id) {
+                setTypingUsers((prev) => {
+                    if (prev.some(u => u.userId === data.userId)) return prev;
+                    return [...prev, { userId: data.userId, username: data.username }];
+                });
+            }
+        };
+
+        const handleUserStopTyping = (data) => {
+            if (data.roomId === room?._id) {
+                setTypingUsers((prev) => prev.filter(u => u.userId !== data.userId));
             }
         };
 
         socket.on("receiveMessage", handleReceiveMessage);
+        socket.on("messageEdited", handleMessageEdited);
+        socket.on("messageDeleted", handleMessageDeleted);
+        socket.on("userTyping", handleUserTyping);
+        socket.on("userStopTyping", handleUserStopTyping);
+
         return () => {
             socket.off("receiveMessage", handleReceiveMessage);
+            socket.off("messageEdited", handleMessageEdited);
+            socket.off("messageDeleted", handleMessageDeleted);
+            socket.off("userTyping", handleUserTyping);
+            socket.off("userStopTyping", handleUserStopTyping);
         };
-    }, [room]);
+    }, [room, setRoom]);
 
     // Handle real-time incoming message reactions via socket
     useEffect(() => {
@@ -424,6 +574,18 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                     const savedMessage = response.data.data;
                     // Replace temp message with actual saved message
                     setMessages(prev => prev.map(m => m._id === tempId ? savedMessage : m));
+
+                    // Update parent room state so header updates
+                    if (setRoom) {
+                        const hasMedia = savedMessage.mediaUrl && savedMessage.mediaUrl.length > 0;
+                        setRoom(prev => {
+                            if (!prev) return prev;
+                            return {
+                                ...prev,
+                                lastMessage: savedMessage.content || (hasMedia ? 'Attachment' : 'Message')
+                            };
+                        });
+                    }
                 }
             } catch (error) {
                 console.error("Failed to send message with attachment:", error);
@@ -443,7 +605,76 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
             socket.emit("sendMessage", messageData);
         }
     };
+    const handleEditMessage = async (messageId, newContent) => {
+        try {
+            const token = localStorage.getItem("x-token");
+            const response = await axios.patch(
+                `${import.meta.env.VITE_BACKEND_URL}/api/v1/messages/edit-message/${messageId}`,
+                { content: newContent },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (response.status === 200 && response.data?.data) {
+                const updatedMsg = response.data.data;
+                setMessages(prev => prev.map(m => m._id === messageId ? { ...m, content: updatedMsg.content, edited: true } : m));
+            }
+        } catch (error) {
+            console.error("Failed to edit message:", error);
+            alert("Could not edit message. Please try again.");
+        }
+    };
 
+    const handleDeleteMessage = async (messageId) => {
+        try {
+            const token = localStorage.getItem("x-token");
+            const response = await axios.delete(
+                `${import.meta.env.VITE_BACKEND_URL}/api/v1/messages/delete-message/${messageId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (response.status === 200) {
+                setMessages(prev => prev.map(m => m._id === messageId ? { ...m, deleted: true, content: "", mediaUrl: [] } : m));
+            }
+        } catch (error) {
+            console.error("Failed to delete message:", error);
+            alert("Could not delete message. Please try again.");
+        }
+    };
+
+    const handleTyping = (hasText) => {
+        if (!room || !currentUser) return;
+        const roomId = room._id;
+        const userId = currentUser._id || currentUserId;
+        const username = currentUser.firstName || currentUser.username || 'Someone';
+
+        if (hasText) {
+            if (!isTypingRef.current) {
+                isTypingRef.current = true;
+                socket.emit("typing", { roomId, userId, username });
+            }
+
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => {
+                socket.emit("stopTyping", { roomId, userId });
+                isTypingRef.current = false;
+            }, 3000);
+        } else {
+            if (isTypingRef.current) {
+                socket.emit("stopTyping", { roomId, userId });
+                isTypingRef.current = false;
+            }
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        }
+    };
+
+    const getTypingText = () => {
+        if (typingUsers.length === 0) return undefined;
+        if (typingUsers.length === 1) {
+            return `${typingUsers[0].username} is typing...`;
+        }
+        if (typingUsers.length === 2) {
+            return `${typingUsers[0].username} & ${typingUsers[1].username} are typing...`;
+        }
+        return "Several people are typing...";
+    };
     const handleReact = async (msg, emoji) => {
         if (!room || !currentUser) return;
         const token = localStorage.getItem("x-token");
@@ -615,7 +846,7 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                     }}
                 >
                     {/* Left side: room details */}
-                    <ConversationItem key={room._id} room={room} isHeader={true} />
+                    <ConversationItem key={room._id} room={room} isHeader={true} subTitle={getTypingText()} />
                 </Box>
             </Box>
 
@@ -692,6 +923,8 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                                     isSender={msg.sender === currentUserId || msg.sender?._id === currentUserId}
                                     onReply={(m) => setReplyTo(m)}
                                     onReact={handleReact}
+                                    onEditMessage={handleEditMessage}
+                                    onDeleteMessage={handleDeleteMessage}
                                 />
                             );
                         })}
@@ -754,9 +987,15 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                             handleSend(msg);
                             setReplyTo(null);
                             setAttachments([]);
+                            if (isTypingRef.current) {
+                                socket.emit("stopTyping", { roomId: room._id, userId: (currentUser?._id || currentUserId) });
+                                isTypingRef.current = false;
+                            }
+                            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
                         }}
                         users={room?.roomType === 'group' ? room?.members : []}
                         hasAttachments={attachments.length > 0}
+                        onTyping={handleTyping}
                     />
                 </Box>
                 <input
@@ -775,11 +1014,11 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                 fullWidth 
                 maxWidth="xs" 
                 slotProps={{
-                    paper: { sx: { bgcolor: '#222', color: '#fff', borderRadius: '15px', border: '1px solid #444' } }
+                    paper: { sx: { bgcolor: '#1A1A1A', color: '#fff', borderRadius: '15px', border: '1px solid #666' } }
                 }}
             >
-                <DialogTitle sx={{ borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Add Group Member</Typography>
+                <DialogTitle sx={{ borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#1c34bb', py: 1.5, px: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff' }}>Add Group Member</Typography>
                     <IconButton size="small" onClick={() => { setAddMemberOpen(false); setMemberSearchQuery(''); }} sx={{ color: '#fff' }}>
                         <CloseIcon fontSize="small" />
                     </IconButton>
@@ -794,35 +1033,35 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                         sx={{
                             mt: 1,
                             '& .MuiOutlinedInput-root': {
-                                '& input': { color: 'white' },
-                                '& fieldset': { borderColor: '#555' },
-                                '&:hover fieldset': { borderColor: '#888' },
-                                '&.Mui-focused fieldset': { borderColor: '#0af' },
-                            }
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputBase-input::placeholder': { color: '#aaa', opacity: 1 }
                         }}
                     />
-                    {searchingUsers && <CircularProgress size={24} sx={{ display: 'block', mx: 'auto', mt: 2, color: '#0af' }} />}
+                    {searchingUsers && <CircularProgress size={24} sx={{ display: 'block', mx: 'auto', mt: 2, color: '#a3f96d' }} />}
                     <List sx={{ mt: 1, maxHeight: '250px', overflowY: 'auto' }}>
                         {foundUsers.map(user => (
                             <ListItem 
                                 button 
                                 key={user._id} 
                                 onClick={() => handleAddMember(user._id)} 
-                                sx={{ '&:hover': { bgcolor: '#333' }, borderRadius: '8px', mb: 0.5 }}
+                                sx={{ '&:hover': { bgcolor: '#2A2A2A' }, borderRadius: '8px', mb: 0.5 }}
                             >
                                 <ListItemAvatar>
                                     <Avatar src={user.profilePicture}>{user.firstName[0]}</Avatar>
                                 </ListItemAvatar>
                                 <ListItemText 
                                     primary={`${user.firstName} ${user.lastName}`} 
-                                    primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 'bold' } }}
                                     secondary={user.email} 
-                                    secondaryTypographyProps={{ sx: { color: '#fff', opacity: 0.8, fontSize: '0.75rem' } }} 
+                                    slotProps={{ primary: { sx: { color: '#f0f0f0', fontWeight: 'bold' } }, secondary: { sx: { color: '#fff' } } }}
                                 />
                             </ListItem>
                         ))}
                         {!searchingUsers && memberSearchQuery.trim() && foundUsers.length === 0 && (
-                            <Typography sx={{ color: '#aaa', fontStyle: 'italic', textAlign: 'center', mt: 2 }}>No users found or already in group</Typography>
+                            <Typography sx={{ color: '#bbb', fontStyle: 'italic', textAlign: 'center', mt: 2 }}>No users found or already in group</Typography>
                         )}
                     </List>
                 </DialogContent>
@@ -835,16 +1074,118 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                 fullWidth 
                 maxWidth="xs" 
                 slotProps={{
-                    paper: { sx: { bgcolor: '#222', color: '#fff', borderRadius: '15px', border: '1px solid #444' } }
+                    paper: { sx: { bgcolor: '#1A1A1A', color: '#fff', borderRadius: '15px', border: '1px solid #666' } }
                 }}
             >
-                <DialogTitle sx={{ borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Group Members</Typography>
+                <DialogTitle sx={{ borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#1c34bb', py: 1.5, px: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff' }}>Group Members</Typography>
                     <IconButton size="small" onClick={() => setViewMembersOpen(false)} sx={{ color: '#fff' }}>
                         <CloseIcon fontSize="small" />
                     </IconButton>
                 </DialogTitle>
-                <DialogContent sx={{ p: 1, maxHeight: '350px', overflowY: 'auto' }}>
+                <DialogContent sx={{ p: 2, maxHeight: '350px', overflowY: 'auto' }}>
+                    {/* Group Icon Change (Admin only) */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2, pb: 2, borderBottom: '1px solid #444' }}>
+                        <Box sx={{ position: 'relative' }}>
+                            <Avatar 
+                                src={room.roomProfile || room.profilePic} 
+                                alt={room.roomName || room.name} 
+                                sx={{ width: 80, height: 80, fontSize: '2.2rem', bgcolor: '#1c34bb', color: '#fff' }}
+                            >
+                                {(room.roomName || room.name) ? (room.roomName || room.name)[0] : ''}
+                            </Avatar>
+                            {currentUser?.role === 'ADMIN' && (
+                                <>
+                                    <IconButton
+                                        onClick={() => document.getElementById('groupIconInput').click()}
+                                        sx={{ 
+                                            position: 'absolute', 
+                                            bottom: -4, 
+                                            right: -4, 
+                                            bgcolor: '#1c34bb', 
+                                            color: '#fff', 
+                                            width: 28, 
+                                            height: 28,
+                                            border: '2px solid #1A1A1A',
+                                            '&:hover': { bgcolor: '#152999' } 
+                                        }}
+                                        size="small"
+                                        title="Change Group Icon"
+                                    >
+                                        <EditIcon fontSize="small" style={{ fontSize: '0.9rem' }} />
+                                    </IconButton>
+                                    <input 
+                                        id="groupIconInput" 
+                                        type="file" 
+                                        accept="image/*" 
+                                        style={{ display: 'none' }} 
+                                        onChange={handleGroupIconChange} 
+                                    />
+                                </>
+                            )}
+                        </Box>
+                        {uploadingGroupIcon && (
+                            <CircularProgress size={20} sx={{ mt: 1, color: '#a3f96d' }} />
+                        )}
+                        
+                        {isEditingName ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5, width: '80%' }}>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    variant="outlined"
+                                    value={editNameValue}
+                                    onChange={(e) => setEditNameValue(e.target.value)}
+                                    sx={{
+                                        '& .MuiOutlinedInput-root': {
+                                            '& input': { color: '#f0f0f0', py: 0.8 },
+                                            '& fieldset': { borderColor: '#444' },
+                                            '&:hover fieldset': { borderColor: '#666' },
+                                            '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                                        }
+                                    }}
+                                    disabled={updatingGroupName}
+                                />
+                                <Button 
+                                    size="small" 
+                                    onClick={() => setIsEditingName(false)} 
+                                    sx={{ color: '#ccc', textTransform: 'none', minWidth: 'fit-content' }}
+                                    disabled={updatingGroupName}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    size="small" 
+                                    variant="contained" 
+                                    onClick={handleUpdateGroupName} 
+                                    sx={{ bgcolor: '#a3f96d', color: '#000', textTransform: 'none', fontWeight: 'bold', minWidth: 'fit-content', '&:hover': { bgcolor: '#8ee05c' } }}
+                                    disabled={updatingGroupName}
+                                >
+                                    {updatingGroupName ? 'Saving...' : 'Save'}
+                                </Button>
+                            </Box>
+                        ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                                    {room.roomName || room.name}
+                                </Typography>
+                                {currentUser?.role === 'ADMIN' && (
+                                    <IconButton
+                                        size="small"
+                                        onClick={() => {
+                                            setEditNameValue(room.roomName || room.name || '');
+                                            setIsEditingName(true);
+                                        }}
+                                        sx={{ color: '#aaa', '&:hover': { color: '#fff' } }}
+                                        title="Edit Group Name"
+                                    >
+                                        <EditIcon fontSize="small" style={{ fontSize: '1rem' }} />
+                                    </IconButton>
+                                )}
+                            </Box>
+                        )}
+                    </Box>
+
                     <List sx={{ py: 0 }}>
                         {room.members?.map((member, idx) => {
                             const name = member.firstName 
@@ -856,7 +1197,7 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                             return (
                                 <ListItem 
                                     key={idx} 
-                                    sx={{ borderBottom: '1px solid #333', '&:last-child': { border: 'none' }, py: 1 }}
+                                    sx={{ borderBottom: '1px solid #444', '&:last-child': { border: 'none' }, py: 1 }}
                                     secondaryAction={
                                         currentUser?.role === 'ADMIN' && (member._id || member).toString() !== currentUserId?.toString() && (
                                             <IconButton 
@@ -875,9 +1216,8 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                                     </ListItemAvatar>
                                     <ListItemText 
                                         primary={name} 
-                                        primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 'bold' } }}
                                         secondary={email} 
-                                        secondaryTypographyProps={{ sx: { color: '#fff', opacity: 0.8, fontSize: '0.75rem' } }} 
+                                        slotProps={{ primary: { sx: { color: '#f0f0f0', fontWeight: 'bold' } }, secondary: { sx: { color: '#fff' } } }}
                                     />
                                 </ListItem>
                             );

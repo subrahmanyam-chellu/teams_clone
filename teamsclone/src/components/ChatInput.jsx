@@ -3,7 +3,7 @@ import { Box, TextField, IconButton, Popper, List, ListItem, ListItemText } from
 import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 
-const ChatInput = ({ onSend, users, hasAttachments }) => {
+const ChatInput = ({ onSend, users, hasAttachments, onTyping }) => {
   const [text, setText] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -11,6 +11,7 @@ const ChatInput = ({ onSend, users, hasAttachments }) => {
   const handleChange = (e) => {
     const value = e.target.value;
     setText(value);
+    onTyping?.(value.length > 0);
 
     // Detect @mention
     const match = value.match(/@(\w*)$/);

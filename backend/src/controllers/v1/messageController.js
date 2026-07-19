@@ -20,6 +20,10 @@ const sendMessage = async(req, res, next)=>{
 const editMessage = async(req, res, next)=>{
     try{
         const result = await messageServices.editMessage(req);
+        if (result.statusCode === 200 && result.data) {
+            const populated = await result.data.populate("sender", "firstName lastName email profilePicture");
+            req.io.to(result.data.roomId.toString()).emit("messageEdited", populated);
+        }
         return {statusCode: result.statusCode, data: result.data, message:result.message};
     }catch(error){
         return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);
@@ -30,6 +34,12 @@ const editMessage = async(req, res, next)=>{
 const deleteMessage = async(req, res, next)=>{
     try{
         const result = await messageServices.deleteMessage(req);
+        if (result.statusCode === 200 && result.data) {
+            req.io.to(result.data.roomId.toString()).emit("messageDeleted", {
+                messageId: result.data._id,
+                roomId: result.data.roomId
+            });
+        }
         return {statusCode: result.statusCode, data: result.data, message:result.message};
     }catch(error){
         return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, error.message);

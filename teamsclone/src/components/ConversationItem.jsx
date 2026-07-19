@@ -3,10 +3,10 @@ import { Box, Avatar, Typography, Badge, IconButton } from '@mui/material';
 import FiberNewIcon from '@mui/icons-material/FiberNew';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-const ConversationItem = ({ room, isNew, isHeader, onClick }) => {
+const ConversationItem = ({ room, isNew, isHeader, onClick, subTitle }) => {
   const name = room?.name || room?.roomName || 'Conversation';
   const profilePic = room?.profilePic || room?.roomProfile || '';
-  const lastMessageText = room?.lastMessage || 'No messages yet';
+  const lastMessageText = subTitle !== undefined ? subTitle : (room?.lastMessage || 'No messages yet');
 
   return (
     <Box
@@ -29,7 +29,7 @@ const ConversationItem = ({ room, isNew, isHeader, onClick }) => {
         alt={name}
         sx={{ mr: 2 }}
       >
-        {name[0] || 'C'}
+        {name ? name[0] : ''}
       </Avatar>
 
       {/* Room name + last message stacked */}
@@ -37,16 +37,31 @@ const ConversationItem = ({ room, isNew, isHeader, onClick }) => {
         <Typography sx={{ color: '#fff', fontWeight: 'bold' }}>
           {name}
         </Typography>
-        <Typography sx={{ color: '#aaa', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Typography sx={{ color: subTitle ? '#a3f96d' : '#aaa', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {lastMessageText}
         </Typography>
       </Box>
 
-      {/* New badge */}
-      {isNew && (
-        <Badge color="primary" variant="dot">
-          <FiberNewIcon sx={{ color: 'primary.main' }} />
-        </Badge>
+      {/* Unread message count badge */}
+      {!isHeader && room?.unreadCount > 0 && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: '#1c34bb',
+            color: '#fff',
+            fontSize: '0.75rem',
+            fontWeight: 'bold',
+            borderRadius: '50%',
+            minWidth: 20,
+            height: 20,
+            px: 0.6,
+            ml: 1
+          }}
+        >
+          {room.unreadCount}
+        </Box>
       )}
     </Box>
   );

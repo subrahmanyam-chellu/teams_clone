@@ -1,9 +1,11 @@
 import React from 'react';
-import { Box, Typography, Avatar, IconButton, Popover, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemAvatar, ListItemText } from '@mui/material';
+import { Box, Typography, Avatar, IconButton, Popover, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemAvatar, ListItemText, TextField, Button } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import ReplyIcon from '@mui/icons-material/Reply';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const getAttachmentsFromMediaUrl = (mediaUrls) => {
   if (!mediaUrls || !Array.isArray(mediaUrls)) return [];
@@ -25,13 +27,36 @@ const getAttachmentsFromMediaUrl = (mediaUrls) => {
   });
 };
 
-const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentUser, isSender, onReply, onReact }) => {
+const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentUser, isSender, onReply, onReact, onEditMessage, onDeleteMessage }) => {
   const attachmentsList = message.attachments || getAttachmentsFromMediaUrl(message.mediaUrl);
   
   // Popover and Dialog states
   const [reactionAnchorEl, setReactionAnchorEl] = React.useState(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [readRecipientsOpen, setReadRecipientsOpen] = React.useState(false);
+
+  // Edit states
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editContent, setEditContent] = React.useState(message.content || '');
+
+  React.useEffect(() => {
+    setEditContent(message.content || '');
+  }, [message.content]);
+
+  const handleSaveEdit = () => {
+    if (!editContent.trim()) {
+      alert("Message content cannot be empty.");
+      return;
+    }
+    onEditMessage?.(message._id, editContent);
+    setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (confirm("Are you sure you want to delete this message?")) {
+      onDeleteMessage?.(message._id);
+    }
+  };
 
   const resolveReceiptUser = (receipt) => {
     const rawId = (receipt.userId?._id || receipt.userId)?.toString();
@@ -215,8 +240,33 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
               </Typography>
             )}
 
-            {/* Text */}
-            {message.content && <Typography>{message.content}</Typography>}
+             {/* Text / Edit field */}
+             {isEditing ? (
+               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1, minWidth: '200px' }}>
+                 <TextField
+                   fullWidth
+                   multiline
+                   size="small"
+                   variant="outlined"
+                   value={editContent}
+                   onChange={(e) => setEditContent(e.target.value)}
+                   sx={{
+                     '& .MuiOutlinedInput-root': {
+                       '& textarea': { color: '#f0f0f0', fontSize: '0.9rem' },
+                       '& fieldset': { borderColor: '#444' },
+                       '&:hover fieldset': { borderColor: '#666' },
+                       '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                     }
+                   }}
+                 />
+                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                   <Button size="small" onClick={() => setIsEditing(false)} sx={{ color: '#ccc', textTransform: 'none' }}>Cancel</Button>
+                   <Button size="small" variant="contained" onClick={handleSaveEdit} sx={{ bgcolor: '#a3f96d', color: '#000', textTransform: 'none', fontWeight: 'bold', '&:hover': { bgcolor: '#8ee05c' } }}>Save</Button>
+                 </Box>
+               </Box>
+             ) : (
+               message.content && <Typography>{message.content}</Typography>
+             )}
 
             {/* Attachments */}
             {attachmentsList.map((att, idx) => (
@@ -339,13 +389,14 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
           )}
         </Typography>
 
-        {/* Reply + React options */}
+        {/* Reply + React options + Edit/Delete */}
         {!message.deleted && (
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
             <IconButton
               size="small"
               onClick={() => onReply?.(message)}
               sx={{ color: '#fff' }}
+              title="Reply"
             >
               <ReplyIcon fontSize="small" />
             </IconButton>
@@ -353,9 +404,34 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
               size="small"
               onClick={(e) => setReactionAnchorEl(e.currentTarget)}
               sx={{ color: '#fff' }}
+              title="React"
             >
               <SentimentSatisfiedAltIcon fontSize="small" />
             </IconButton>
+
+            {/* Show edit button to sender */}
+            {isSender && (
+              <IconButton
+                size="small"
+                onClick={() => setIsEditing(true)}
+                sx={{ color: '#fff', '&:hover': { color: '#a3f96d' } }}
+                title="Edit"
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            )}
+
+            {/* Show delete button to sender or admin */}
+            {(isSender || currentUser?.role === 'ADMIN') && (
+              <IconButton
+                size="small"
+                onClick={handleDelete}
+                sx={{ color: '#fff', '&:hover': { color: '#ff4444' } }}
+                title="Delete"
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            )}
           </Box>
         )}
       </Box>
@@ -415,30 +491,29 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
         maxWidth="xs"
         slotProps={{
           paper: {
-            sx: { bgcolor: '#222', color: '#fff', borderRadius: '15px', border: '1px solid #444' }
+            sx: { bgcolor: '#1A1A1A', color: '#fff', borderRadius: '15px', border: '1px solid #666' }
           }
         }}
       >
-        <DialogTitle sx={{ borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
+        <DialogTitle sx={{ borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#1c34bb', py: 1.5, px: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff' }}>Message Reactions</Typography>
           <IconButton size="small" onClick={() => setDetailsOpen(false)} sx={{ color: '#fff' }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: 1, maxHeight: '300px', overflowY: 'auto' }}>
+        <DialogContent sx={{ p: 2, maxHeight: '300px', overflowY: 'auto' }}>
           <List sx={{ py: 0 }}>
             {message.reactions?.map((r, idx) => {
               const profile = resolveReactionUser(r);
               return (
-                <ListItem key={idx} sx={{ borderBottom: '1px solid #333', '&:last-child': { border: 'none' }, py: 1 }}>
+                <ListItem key={idx} sx={{ borderBottom: '1px solid #444', '&:last-child': { border: 'none' }, py: 1 }}>
                   <ListItemAvatar>
                     <Avatar src={profile.avatar}>{profile.name[0]}</Avatar>
                   </ListItemAvatar>
                   <ListItemText 
                     primary={profile.name} 
-                    primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 'bold' } }}
                     secondary={profile.email} 
-                    secondaryTypographyProps={{ sx: { color: '#fff', fontSize: '0.75rem', opacity: 0.9 } }} 
+                    slotProps={{ primary: { sx: { color: '#f0f0f0', fontWeight: 'bold' } }, secondary: { sx: { color: '#fff' } } }}
                   />
                   <Typography sx={{ fontSize: '1.5rem', ml: 2 }}>
                     {r.emoji}
@@ -458,30 +533,29 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
         maxWidth="xs"
         slotProps={{
           paper: {
-            sx: { bgcolor: '#222', color: '#fff', borderRadius: '15px', border: '1px solid #444' }
+            sx: { bgcolor: '#1A1A1A', color: '#fff', borderRadius: '15px', border: '1px solid #666' }
           }
         }}
       >
-        <DialogTitle sx={{ borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
+        <DialogTitle sx={{ borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#1c34bb', py: 1.5, px: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff' }}>Message Read By</Typography>
           <IconButton size="small" onClick={() => setReadRecipientsOpen(false)} sx={{ color: '#fff' }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: 1, maxHeight: '300px', overflowY: 'auto' }}>
+        <DialogContent sx={{ p: 2, maxHeight: '300px', overflowY: 'auto' }}>
           <List sx={{ py: 0 }}>
             {message.readReceipts?.map((r, idx) => {
               const profile = resolveReceiptUser(r);
               return (
-                <ListItem key={idx} sx={{ borderBottom: '1px solid #333', '&:last-child': { border: 'none' }, py: 1 }}>
+                <ListItem key={idx} sx={{ borderBottom: '1px solid #444', '&:last-child': { border: 'none' }, py: 1 }}>
                   <ListItemAvatar>
                     <Avatar src={profile.avatar}>{profile.name[0]}</Avatar>
                   </ListItemAvatar>
                   <ListItemText 
                     primary={profile.name} 
-                    primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 'bold' } }}
                     secondary={formatReadTime(r.readAt)} 
-                    secondaryTypographyProps={{ sx: { color: '#fff', fontSize: '0.75rem', opacity: 0.9 } }} 
+                    slotProps={{ primary: { sx: { color: '#f0f0f0', fontWeight: 'bold' } }, secondary: { sx: { color: '#fff' } } }}
                   />
                 </ListItem>
               );

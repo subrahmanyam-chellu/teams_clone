@@ -1,13 +1,19 @@
 import React from 'react';
-import { Box, Toolbar, IconButton, Typography, List, ListItem, ListItemText } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
+import { Box, Toolbar } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import ChatIcon from '@mui/icons-material/Chat';
 import CallIcon from '@mui/icons-material/Call';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import GroupIcon from '@mui/icons-material/Group';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function VerticalAppBar() {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const isChatActive = location.pathname === '/chat';
+    const isTeamsActive = location.pathname === '/teams';
+
     return (
         <Box sx={{ display: {xs:'none', md:'flex'} }}>
             <Box
@@ -27,11 +33,25 @@ export default function VerticalAppBar() {
                 }}
             >
                 <Toolbar sx={{ minHeight: '48px', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 8, mt: 8 }}>
-                    <NotificationsIcon sx={{color:'#a3f96d'}}/>
-                    <ChatIcon />
-                    <GroupIcon />
-                    <CallIcon />
-                    <CalendarMonthIcon />
+                    <NotificationsIcon sx={{color:'#a3f96d', cursor: 'pointer'}}/>
+                    <ChatIcon 
+                        onClick={() => navigate('/chat')} 
+                        sx={{ 
+                            cursor: 'pointer', 
+                            color: isChatActive ? '#a3f96d' : '#fff',
+                            '&:hover': { color: '#a3f96d' } 
+                        }} 
+                    />
+                    <GroupIcon 
+                        onClick={() => navigate('/teams')} 
+                        sx={{ 
+                            cursor: 'pointer', 
+                            color: isTeamsActive ? '#a3f96d' : '#fff',
+                            '&:hover': { color: '#a3f96d' } 
+                        }} 
+                    />
+                    <CallIcon sx={{ cursor: 'pointer' }} />
+                    <CalendarMonthIcon sx={{ cursor: 'pointer' }} />
                 </Toolbar>
             </Box>
         </Box>
