@@ -63,6 +63,30 @@ const sendMessage = async (data) => {
         const result = await Messages.create(data.body);
         if (result) {
             const lastMessage = await Rooms.findByIdAndUpdate(data.body.roomId, { $set: { lastMessage: result._id } });
+            
+            // Create notifications for offline room members
+            const Notifications = require("../../models/Notifications");
+            
+            let offlineMembers = [];
+            if (data.io) {
+                const allSockets = await data.io.fetchSockets();
+                const onlineUserIds = allSockets.map(s => s.data?.user?.id?.toString() || s.user?.id?.toString() || s.user?._id?.toString()).filter(Boolean);
+                
+                offlineMembers = room.members.filter(memberId => {
+                    const mIdStr = memberId.toString();
+                    return mIdStr !== data.body.sender.toString() && !onlineUserIds.includes(mIdStr);
+                });
+            }
+
+            if (offlineMembers.length > 0) {
+                const notifData = offlineMembers.map(memberId => ({
+                    userId: memberId,
+                    messageId: result._id,
+                    roomId: room._id,
+                    status: "unread"
+                }));
+                await Notifications.insertMany(notifData);
+            }
         } else {
             return new ErrorHandler(statusCodes.INTERNAL_SERVER_ERROR, "error is related with database ");
         }

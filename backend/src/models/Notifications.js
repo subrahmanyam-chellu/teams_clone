@@ -7,7 +7,7 @@ const notificationSchema = new mongoose.Schema({
     },
     messageId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Message",
+        ref: "Messages",
         required: true
     },
     roomId: {

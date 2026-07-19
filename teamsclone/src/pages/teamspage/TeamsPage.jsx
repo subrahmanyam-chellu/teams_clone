@@ -5,10 +5,11 @@ import ChatWindow from '../../components/ChatWindow';
 import ConversationsList from '../../components/ConversationsList';
 import socket from '../../components/Socket';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const TeamsPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [room, setRoom] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -55,6 +56,13 @@ const TeamsPage = () => {
             socket.disconnect();
         };
     }, [navigate]);
+
+    // Clear navigation selectRoomId state on mount/change
+    useEffect(() => {
+        if (location.state?.selectRoomId) {
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
 
     // User search function
     useEffect(() => {
@@ -145,6 +153,7 @@ const TeamsPage = () => {
                     refreshTrigger={refreshTrigger}
                     onNewGroupClick={() => setNewGroupOpen(true)}
                     isTeamsPage={true}
+                    selectRoomId={location.state?.selectRoomId}
                 />
                 <ChatWindow 
                     room={room} 

@@ -8,9 +8,9 @@ import HomePage from './pages/homepage/HomePage'
 import Auth from './pages/authpage/Auth'
 import ChatPage from './pages/chatpage/ChatPage'
 import TeamsPage from './pages/teamspage/TeamsPage'
+import NotificationsPage from './pages/notificationspage/NotificationsPage'
 import JoinRoom from './pages/joinroom/JoinRoom'
 import ResponsiveAppBar from './components/ResponsiveAppBar'
-
 
 function App() {
   return (
@@ -20,6 +20,7 @@ function App() {
         <Route path="/auth" element={<Auth />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/teams" element={<TeamsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/join/:inviteCode" element={<JoinRoom />} />
       </Routes>
     </Router>

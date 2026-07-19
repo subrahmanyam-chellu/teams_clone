@@ -9,6 +9,7 @@ const { socketAuth } = require("./middlewares/auth");
 const userRoutes = require("./routes/v1/userRoutes");
 const roomRoutes = require("./routes/v1/roomRoutes");
 const messageRoutes = require("./routes/v1/messageRoutes");
+const notificationRoutes = require("./routes/v1/notificationRoutes");
 const Messages = require("./models/Messages");
 const User = require("./models/User");
 const Rooms = require("./models/Rooms");
@@ -37,6 +38,7 @@ app.use((req, res, next) => {
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/rooms", roomRoutes);
 app.use("/api/v1/messages", messageRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello, World!");
@@ -80,6 +82,29 @@ io.on("connection", async (socket) => {
       await Rooms.findByIdAndUpdate(messageData.roomId, {
         $set: { lastMessage: newMessage._id }
       });
+
+      // Create notifications for offline room members
+      const room = await Rooms.findById(messageData.roomId);
+      if (room) {
+        const allSockets = await io.fetchSockets();
+        const onlineUserIds = allSockets.map(s => s.data?.user?.id?.toString() || s.user?.id?.toString() || s.user?._id?.toString()).filter(Boolean);
+
+        const offlineMembers = room.members.filter(memberId => {
+          const mIdStr = memberId.toString();
+          return mIdStr !== messageData.sender.toString() && !onlineUserIds.includes(mIdStr);
+        });
+
+        if (offlineMembers.length > 0) {
+          const Notifications = require("./models/Notifications");
+          const notifData = offlineMembers.map(memberId => ({
+            userId: memberId,
+            messageId: newMessage._id,
+            roomId: room._id,
+            status: "unread"
+          }));
+          await Notifications.insertMany(notifData);
+        }
+      }
 
       const populated = await newMessage.populate("sender", "firstName lastName email profilePicture");
 

@@ -38,21 +38,17 @@ const mapRoom = (room, currentUser) => {
   };
 };
 
-const ConversationsList = ({ setRoom, activeRoomId, refreshTrigger, onNewChatClick, onNewGroupClick, isChatPage, isTeamsPage }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+const ConversationsList = ({ setRoom, activeRoomId, refreshTrigger, onNewChatClick, onNewGroupClick, isChatPage, isTeamsPage, selectRoomId }) => {
   const [rooms, setRooms] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Invite states
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
 
-  const handleSendInvite = (e) => {
-    e.preventDefault();
-    if (!inviteEmail.trim()) {
-      alert("Please enter a valid email address.");
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(inviteEmail)) {
+  const handleInviteSubmit = () => {
+    if (!inviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
       alert("Invalid email format. Please check and try again.");
       return;
     }
@@ -86,6 +82,14 @@ const ConversationsList = ({ setRoom, activeRoomId, refreshTrigger, onNewChatCli
         const mapped = roomsData.map(r => mapRoom(r, currentUserObj));
         setRooms(mapped);
         
+        // Auto-select room matching selectRoomId prop
+        if (selectRoomId) {
+          const matched = mapped.find(r => r._id === selectRoomId);
+          if (matched) {
+            setRoom(matched);
+          }
+        }
+
         // Auto-join all socket channels for real-time sidebar preview updates
         mapped.forEach(r => {
           socket.emit("joinRoom", r._id);
@@ -306,7 +310,7 @@ const ConversationsList = ({ setRoom, activeRoomId, refreshTrigger, onNewChatCli
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
-        <Box component="form" onSubmit={handleSendInvite}>
+        <Box component="form" onSubmit={(e) => { e.preventDefault(); handleInviteSubmit(); }}>
           <DialogContent sx={{ p: 2 }}>
             <TextField
               fullWidth
