@@ -11,8 +11,26 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LinkIcon from '@mui/icons-material/Link';
 import EditIcon from '@mui/icons-material/Edit';
+import VideocamIcon from '@mui/icons-material/Videocam';
 import axios from 'axios';
 import socket from './Socket';
+
+const pulseAnimation = {
+    '@keyframes pulse': {
+        '0%': {
+            boxShadow: '0 0 0 0 rgba(163, 249, 109, 0.7)',
+            transform: 'scale(1)',
+        },
+        '70%': {
+            boxShadow: '0 0 0 10px rgba(163, 249, 109, 0)',
+            transform: 'scale(1.05)',
+        },
+        '100%': {
+            boxShadow: '0 0 0 0 rgba(163, 249, 109, 0)',
+            transform: 'scale(1)',
+        },
+    },
+};
 
 const ChatWindow = ({ room, currentUserId, setRoom }) => {
     const [messages, setMessages] = useState([]);
@@ -20,6 +38,11 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
     const [attachments, setAttachments] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentUser, setCurrentUser] = useState(null);
+
+    // Video calling states
+    const [callActive, setCallActive] = useState(false);
+    const [isCallActiveInRoom, setIsCallActiveInRoom] = useState(false);
+    const [incomingCall, setIncomingCall] = useState(null);
 
     // Typing states
     const [typingUsers, setTypingUsers] = useState([]);
@@ -252,7 +275,7 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
             if (response.status === 200) {
                 const { result, count } = response.data.data;
                 const reversed = [...result].reverse();
-                setMessages(reversed);
+                setMessages(reversed.filter(m => !m.isCallMessage));
                 setHasMore(reversed.length < count);
 
                 // Scroll to bottom after loading initial messages
@@ -282,7 +305,7 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
         }
     }, [room]);
 
-    // Reset typing status on room switch
+    // Reset typing status and calling states on room switch
     useEffect(() => {
         if (isTypingRef.current && room?._id) {
             socket.emit("stopTyping", { roomId: room._id, userId: currentUser?._id || currentUserId });
@@ -292,7 +315,52 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
             clearTimeout(typingTimeoutRef.current);
         }
         setTypingUsers([]);
+        setIsCallActiveInRoom(false);
+        setIncomingCall(null);
+        setCallActive(false);
     }, [room]);
+
+    // Handle real-time calling events via socket
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleIncomingCall = (data) => {
+            console.log("Incoming call received:", data);
+            const myId = (currentUser?._id || currentUserId)?.toString();
+            
+            // Set active call in room state if it matches the current room
+            if (room && data.roomId === room._id) {
+                setIsCallActiveInRoom(true);
+            }
+            
+            // Only show banner if we are not the host
+            if (data.hostId?.toString() !== myId) {
+                setIncomingCall(data);
+            }
+        };
+
+        const handleCallEnded = (data) => {
+            console.log("Call ended received:", data);
+            if (room && data.roomId === room._id) {
+                setIsCallActiveInRoom(false);
+                setCallActive(false);
+            }
+            setIncomingCall(prev => {
+                if (prev && prev.roomId === data.roomId) {
+                    return null;
+                }
+                return prev;
+            });
+        };
+
+        socket.on("incomingCall", handleIncomingCall);
+        socket.on("callEnded", handleCallEnded);
+
+        return () => {
+            socket.off("incomingCall", handleIncomingCall);
+            socket.off("callEnded", handleCallEnded);
+        };
+    }, [room, currentUser, currentUserId]);
 
     const loadMoreMessages = async () => {
         if (loadingMore || !hasMore || !room?._id) return;
@@ -316,7 +384,7 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
 
                 setMessages((prev) => {
                     const prevIds = new Set(prev.map(m => m._id));
-                    const filteredNew = reversed.filter(m => !prevIds.has(m._id));
+                    const filteredNew = reversed.filter(m => !prevIds.has(m._id) && !m.isCallMessage);
                     return [...filteredNew, ...prev];
                 });
 
@@ -350,6 +418,10 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
             const newRoomId = newMessage.roomId?.toString() || newMessage.roomId;
             const currentRoomId = room?._id?.toString() || room?._id;
             if (newRoomId === currentRoomId) {
+                if (newMessage.isCallMessage) {
+                    setIsCallActiveInRoom(true);
+                    return;
+                }
                 setMessages((prev) => {
                     // Check if we already have this message by ID
                     if (prev.some(m => m._id === newMessage._id)) return prev;
@@ -735,6 +807,30 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
         }
     };
 
+    const handleStartCall = () => {
+        if (!room?._id) return;
+        const hostName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Host";
+        const callData = {
+            roomId: room._id,
+            roomName: room.roomName || room.name || 'Room Call',
+            hostName,
+            roomType: room.roomType,
+            hostId: currentUser?._id || currentUserId
+        };
+        socket.emit("startCall", callData);
+
+        setCallActive(true);
+        setIsCallActiveInRoom(true);
+    };
+
+    const handleEndCall = () => {
+        if (!room?._id) return;
+        socket.emit("endCall", { roomId: room._id });
+        setCallActive(false);
+        setIsCallActiveInRoom(false);
+        setIncomingCall(null);
+    };
+
     if (!room?._id) {
         return (
             <Box
@@ -824,6 +920,7 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                 flexDirection: 'column',
                 border: '1px solid #666',
                 borderRadius: '15px',
+                position: 'relative',
             }}
         >
             {/* Header with ConversationItem + search */}
@@ -852,6 +949,35 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
 
                 {/* Right side: add member & search box */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {/* Video Call Action Button */}
+                    {(() => {
+                        const isGroup = room.roomType === 'group';
+                        const isAdmin = currentUser?.role === 'ADMIN';
+                        const isPrivate = room.roomType === 'private';
+                        
+                        const showCallButton = isPrivate || (isGroup && (isAdmin || isCallActiveInRoom));
+                        
+                        if (!showCallButton) return null;
+                        
+                        return (
+                            <IconButton
+                                onClick={isCallActiveInRoom ? () => setCallActive(true) : handleStartCall}
+                                sx={{
+                                    color: isCallActiveInRoom ? '#000' : 'white',
+                                    bgcolor: isCallActiveInRoom ? '#a3f96d' : 'transparent',
+                                    animation: isCallActiveInRoom ? 'pulse 2s infinite' : 'none',
+                                    '&:hover': {
+                                        bgcolor: isCallActiveInRoom ? '#8ee05c' : '#444',
+                                        color: isCallActiveInRoom ? '#000' : 'white',
+                                    },
+                                    ...pulseAnimation,
+                                }}
+                                title={isCallActiveInRoom ? "Join Active Call" : "Start Video Call"}
+                            >
+                                <VideocamIcon />
+                            </IconButton>
+                        );
+                    })()}
                     {room.roomType === 'group' && currentUser?.role === 'ADMIN' && (
                         <IconButton 
                             onClick={() => setAddMemberOpen(true)}
@@ -925,6 +1051,7 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                                     onReact={handleReact}
                                     onEditMessage={handleEditMessage}
                                     onDeleteMessage={handleDeleteMessage}
+                                    onJoinCall={() => setCallActive(true)}
                                 />
                             );
                         })}
@@ -1224,6 +1351,133 @@ const ChatWindow = ({ room, currentUserId, setRoom }) => {
                         })}
                     </List>
                 </DialogContent>
+            </Dialog>
+
+            {/* Incoming Call Banner */}
+            {incomingCall && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: 75,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 10,
+                        bgcolor: '#1A1A1A',
+                        color: '#fff',
+                        border: '2px solid #a3f96d',
+                        borderRadius: '12px',
+                        p: 2,
+                        boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        animation: 'fadeIn 0.3s ease',
+                    }}
+                >
+                    <Avatar sx={{ bgcolor: '#1c34bb' }}>
+                        <VideocamIcon />
+                    </Avatar>
+                    <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                            Incoming Call
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#aaa' }}>
+                            {incomingCall.hostName} is inviting you to a video call in <strong>{incomingCall.roomName}</strong>
+                        </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                            variant="contained"
+                            sx={{
+                                bgcolor: '#a3f96d',
+                                color: '#000',
+                                fontWeight: 'bold',
+                                '&:hover': { bgcolor: '#8ee05c' },
+                            }}
+                            onClick={() => {
+                                if (setRoom && room?._id !== incomingCall.roomId) {
+                                    setRoom({
+                                        _id: incomingCall.roomId,
+                                        roomName: incomingCall.roomName,
+                                        roomType: incomingCall.roomType,
+                                        members: [], 
+                                    });
+                                }
+                                setCallActive(true);
+                                setIncomingCall(null);
+                            }}
+                        >
+                            Join
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            sx={{
+                                color: '#ff4444',
+                                borderColor: '#ff4444',
+                                '&:hover': { bgcolor: 'rgba(255, 68, 68, 0.1)', borderColor: '#ff4444' },
+                            }}
+                            onClick={() => {
+                                setIncomingCall(null);
+                            }}
+                        >
+                            Decline
+                        </Button>
+                    </Box>
+                </Box>
+            )}
+
+            {/* Jitsi Meet Video Call Dialog */}
+            <Dialog
+                open={callActive}
+                onClose={() => {}} 
+                fullScreen
+                slotProps={{
+                    paper: { sx: { bgcolor: '#1A1A1A', color: '#fff' } }
+                }}
+            >
+                <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 2,
+                            bgcolor: '#2A2A2A',
+                            borderBottom: '1px solid #444',
+                        }}
+                    >
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                            Video Call: {room?.roomName || room?.name || 'Active Call'}
+                        </Typography>
+                        {(() => {
+                             const canEndCall = room?.roomType === 'private' || currentUser?.role === 'ADMIN';
+                             return (
+                                 <Button
+                                     variant="contained"
+                                     sx={{
+                                         bgcolor: '#ff4444',
+                                         color: '#fff',
+                                         fontWeight: 'bold',
+                                         '&:hover': { bgcolor: '#cc3333' },
+                                     }}
+                                     onClick={canEndCall ? handleEndCall : () => {
+                                         setCallActive(false);
+                                         setIsCallActiveInRoom(false);
+                                     }}
+                                 >
+                                     {canEndCall ? 'End Call' : 'Leave Call'}
+                                 </Button>
+                             );
+                         })()}
+                    </Box>
+                    <Box sx={{ flexGrow: 1, bgcolor: '#1A1A1A' }}>
+                        <iframe
+                            src={`https://meet.jit.si/teamsclone-${room?._id}#userInfo.displayName="${currentUser?.firstName || ''} ${currentUser?.lastName || ''}"&config.prejoinPageEnabled=false&config.defaultLanguage="en"`}
+                            style={{ width: '100%', height: '100%', border: 'none' }}
+                            allow="camera; microphone; fullscreen; display-capture; autoplay"
+                        />
+                    </Box>
+                </Box>
             </Dialog>
         </Box>
     );

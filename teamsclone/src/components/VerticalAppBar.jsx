@@ -7,6 +7,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import GroupIcon from '@mui/icons-material/Group';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import socket from './Socket';
 
 export default function VerticalAppBar() {
     const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function VerticalAppBar() {
     const isChatActive = location.pathname === '/chat';
     const isTeamsActive = location.pathname === '/teams';
     const isNotificationsActive = location.pathname === '/notifications';
+    const isScheduleActive = location.pathname === '/schedule';
 
     const fetchUnreadCount = async () => {
         try {
@@ -38,6 +40,24 @@ export default function VerticalAppBar() {
         const interval = setInterval(fetchUnreadCount, 30000);
         return () => clearInterval(interval);
     }, [location.pathname]);
+
+    React.useEffect(() => {
+        const handleUpdate = () => {
+            fetchUnreadCount();
+        };
+        window.addEventListener('notificationsUpdated', handleUpdate);
+        
+        if (socket) {
+            socket.on("newNotification", handleUpdate);
+        }
+
+        return () => {
+            window.removeEventListener('notificationsUpdated', handleUpdate);
+            if (socket) {
+                socket.off("newNotification", handleUpdate);
+            }
+        };
+    }, []);
 
     return (
         <Box sx={{ display: {xs:'none', md:'flex'} }}>
@@ -84,8 +104,15 @@ export default function VerticalAppBar() {
                             '&:hover': { color: '#a3f96d' } 
                         }} 
                     />
-                    <CallIcon sx={{ cursor: 'pointer', '&:hover': { color: '#a3f96d' } }} />
-                    <CalendarMonthIcon sx={{ cursor: 'pointer', '&:hover': { color: '#a3f96d' } }} />
+                    {/* <CallIcon sx={{ cursor: 'pointer', '&:hover': { color: '#a3f96d' } }} /> */}
+                    <CalendarMonthIcon 
+                        onClick={() => navigate('/schedule')}
+                        sx={{ 
+                            cursor: 'pointer', 
+                            color: isScheduleActive ? '#a3f96d' : '#fff',
+                            '&:hover': { color: '#a3f96d' } 
+                        }} 
+                    />
                 </Toolbar>
             </Box>
         </Box>

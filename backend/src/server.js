@@ -10,6 +10,7 @@ const userRoutes = require("./routes/v1/userRoutes");
 const roomRoutes = require("./routes/v1/roomRoutes");
 const messageRoutes = require("./routes/v1/messageRoutes");
 const notificationRoutes = require("./routes/v1/notificationRoutes");
+const meetingRoutes = require("./routes/v1/meetingRoutes");
 const Messages = require("./models/Messages");
 const User = require("./models/User");
 const Rooms = require("./models/Rooms");
@@ -39,6 +40,7 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/rooms", roomRoutes);
 app.use("/api/v1/messages", messageRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/meetings", meetingRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello, World!");
@@ -46,6 +48,8 @@ app.get("/", (req, res) => {
 
 //socket authentication middleware
 io.use(socketAuth);
+
+const activeCalls = new Map();
 
 // Socket.IO events
 io.on("connection", async (socket) => {
@@ -60,14 +64,32 @@ io.on("connection", async (socket) => {
   };
 
   // Join a room
-  socket.on("joinRoom", (roomId) => {
-    socket.join(roomId);
-    socket.rooms.forEach((roomId) => {
-      socket.to(roomId).emit("userOnline", {
-        userId
+  socket.on("joinRoom", async (roomId) => {
+    try {
+      if (!userId || !roomId) return;
+      const room = await Rooms.findById(roomId);
+      if (!room) return;
+
+      const mIds = room.members.map(id => id.toString());
+      if (!mIds.includes(userId.toString())) {
+        console.log(`Access denied: User ${userId} is not a member of room ${roomId}`);
+        return;
+      }
+
+      socket.join(roomId);
+      socket.rooms.forEach((roomId) => {
+        socket.to(roomId).emit("userOnline", {
+          userId
+        });
       });
-    });
-    console.log(`User ${socket.id} joined room ${roomId}`);
+      console.log(`User ${socket.id} joined room ${roomId}`);
+      const activeCall = activeCalls.get(roomId.toString());
+      if (activeCall) {
+        socket.emit("incomingCall", activeCall);
+      }
+    } catch (err) {
+      console.error("Error in joinRoom socket:", err);
+    }
   });
 
   // Send a message
@@ -83,26 +105,31 @@ io.on("connection", async (socket) => {
         $set: { lastMessage: newMessage._id }
       });
 
-      // Create notifications for offline room members
+      // Create notifications
       const room = await Rooms.findById(messageData.roomId);
       if (room) {
-        const allSockets = await io.fetchSockets();
-        const onlineUserIds = allSockets.map(s => s.data?.user?.id?.toString() || s.user?.id?.toString() || s.user?._id?.toString()).filter(Boolean);
+        let recipientMembers = [];
+        if (messageData.isCallMessage) {
+          recipientMembers = room.members.filter(memberId => memberId.toString() !== messageData.sender.toString());
+        } else {
+          const allSockets = await io.fetchSockets();
+          const onlineUserIds = allSockets.map(s => s.data?.user?.id?.toString() || s.user?.id?.toString() || s.user?._id?.toString()).filter(Boolean);
+          recipientMembers = room.members.filter(memberId => {
+            const mIdStr = memberId.toString();
+            return mIdStr !== messageData.sender.toString() && !onlineUserIds.includes(mIdStr);
+          });
+        }
 
-        const offlineMembers = room.members.filter(memberId => {
-          const mIdStr = memberId.toString();
-          return mIdStr !== messageData.sender.toString() && !onlineUserIds.includes(mIdStr);
-        });
-
-        if (offlineMembers.length > 0) {
+        if (recipientMembers.length > 0) {
           const Notifications = require("./models/Notifications");
-          const notifData = offlineMembers.map(memberId => ({
+          const notifData = recipientMembers.map(memberId => ({
             userId: memberId,
             messageId: newMessage._id,
             roomId: room._id,
             status: "unread"
           }));
           await Notifications.insertMany(notifData);
+          io.to(messageData.roomId).emit("newNotification");
         }
       }
 
@@ -180,6 +207,47 @@ io.on("connection", async (socket) => {
         roomId: data.roomId,
         userId: data.userId
       });
+    }
+  });
+
+  // Video call sockets
+  socket.on("startCall", async (data) => {
+    // data contains: roomId, roomName, hostName, roomType, hostId
+    try {
+      if (!userId || !data || !data.roomId) return;
+      const room = await Rooms.findById(data.roomId);
+      if (!room) return;
+
+      const mIds = room.members.map(id => id.toString());
+      if (!mIds.includes(userId.toString())) {
+        console.log(`Access denied: User ${userId} is not a member of room ${data.roomId}`);
+        return;
+      }
+
+      activeCalls.set(data.roomId.toString(), data);
+      socket.to(data.roomId).emit("incomingCall", data);
+    } catch (err) {
+      console.error("Error in startCall socket:", err);
+    }
+  });
+
+  socket.on("endCall", async (data) => {
+    // data contains: roomId
+    try {
+      if (!userId || !data || !data.roomId) return;
+      const room = await Rooms.findById(data.roomId);
+      if (!room) return;
+
+      const mIds = room.members.map(id => id.toString());
+      if (!mIds.includes(userId.toString())) {
+        console.log(`Access denied: User ${userId} is not a member of room ${data.roomId}`);
+        return;
+      }
+
+      activeCalls.delete(data.roomId.toString());
+      socket.to(data.roomId).emit("callEnded", data);
+    } catch (err) {
+      console.error("Error in endCall socket:", err);
     }
   });
 

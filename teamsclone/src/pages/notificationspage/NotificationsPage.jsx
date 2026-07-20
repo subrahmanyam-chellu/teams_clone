@@ -47,60 +47,63 @@ const NotificationsPage = () => {
         }
     }, [currentUser]);
 
-    const handleMarkAllAsRead = async () => {
-        try {
-            const token = localStorage.getItem("x-token");
-            const response = await axios.patch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/notifications/read`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (response.status === 200) {
-                // Update local state to read
-                setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })));
-            }
-        } catch (error) {
-            console.error("Failed to mark all as read:", error);
-        }
-    };
-
-    const handleClearAll = async () => {
-        if (!window.confirm("Are you sure you want to clear all notifications?")) return;
-        try {
-            const token = localStorage.getItem("x-token");
-            const response = await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/api/v1/notifications`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (response.status === 200) {
-                setNotifications([]);
-            }
-        } catch (error) {
-            console.error("Failed to clear notifications:", error);
-        }
-    };
-
-    const handleNotificationClick = async (notif) => {
-        try {
-            const token = localStorage.getItem("x-token");
-            
-            // If it is unread, mark it as read in backend
-            if (notif.status === 'unread') {
-                await axios.patch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/notifications/read/${notif._id}`, {}, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-            }
-
-            const roomId = notif.roomId?._id || notif.roomId;
-            const roomType = notif.roomId?.roomType;
-
-            // Navigate to the correct page and pass selectRoomId state
-            if (roomType === 'group') {
-                navigate('/teams', { state: { selectRoomId: roomId } });
-            } else {
-                navigate('/chat', { state: { selectRoomId: roomId } });
-            }
-        } catch (error) {
-            console.error("Failed to process notification click:", error);
-        }
-    };
+     const handleMarkAllAsRead = async () => {
+         try {
+             const token = localStorage.getItem("x-token");
+             const response = await axios.patch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/notifications/read`, {}, {
+                 headers: { Authorization: `Bearer ${token}` }
+             });
+             if (response.status === 200) {
+                 // Update local state to read
+                 setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })));
+                 window.dispatchEvent(new Event('notificationsUpdated'));
+             }
+         } catch (error) {
+             console.error("Failed to mark all as read:", error);
+         }
+     };
+ 
+     const handleClearAll = async () => {
+         if (!window.confirm("Are you sure you want to clear all notifications?")) return;
+         try {
+             const token = localStorage.getItem("x-token");
+             const response = await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/api/v1/notifications`, {
+                 headers: { Authorization: `Bearer ${token}` }
+             });
+             if (response.status === 200) {
+                 setNotifications([]);
+                 window.dispatchEvent(new Event('notificationsUpdated'));
+             }
+         } catch (error) {
+             console.error("Failed to clear notifications:", error);
+         }
+     };
+ 
+     const handleNotificationClick = async (notif) => {
+         try {
+             const token = localStorage.getItem("x-token");
+             
+             // If it is unread, mark it as read in backend
+             if (notif.status === 'unread') {
+                 await axios.patch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/notifications/read/${notif._id}`, {}, {
+                     headers: { Authorization: `Bearer ${token}` }
+                 });
+                 window.dispatchEvent(new Event('notificationsUpdated'));
+             }
+ 
+             const roomId = notif.roomId?._id || notif.roomId;
+             const roomType = notif.roomId?.roomType;
+ 
+             // Navigate to the correct page and pass selectRoomId state
+             if (roomType === 'group') {
+                 navigate('/teams', { state: { selectRoomId: roomId } });
+             } else {
+                 navigate('/chat', { state: { selectRoomId: roomId } });
+             }
+         } catch (error) {
+             console.error("Failed to process notification click:", error);
+         }
+     };
 
     return (
         <MainLayout>
@@ -157,15 +160,18 @@ const NotificationsPage = () => {
                                 const isUnread = notif.status === 'unread';
                                 const sender = notif.messageId?.sender;
                                 const senderName = sender ? `${sender.firstName} ${sender.lastName}`.trim() : 'Someone';
-                                const content = notif.messageId?.content || (notif.messageId?.mediaUrl && notif.messageId.mediaUrl.length > 0 ? 'sent an attachment' : 'sent a message');
+                                const isCall = notif.messageId?.isCallMessage;
+                                const content = isCall 
+                                    ? 'invited you to a video call' 
+                                    : (notif.messageId?.content || (notif.messageId?.mediaUrl && notif.messageId.mediaUrl.length > 0 ? 'sent an attachment' : 'sent a message'));
                                 const room = notif.roomId;
                                 const isGroup = room?.roomType === 'group';
 
                                 // Card Title & Text
                                 const notificationTitle = isGroup ? room.roomName : senderName;
-                                const notificationSub = isGroup 
-                                    ? `${senderName} posted: "${content}"`
-                                    : `sent you a message: "${content}"`;
+                                const notificationSub = isCall
+                                    ? (isGroup ? `${senderName} invited the group to a video call` : `invited you to a video call`)
+                                    : (isGroup ? `${senderName} posted: "${content}"` : `sent you a message: "${content}"`);
 
                                 // Card Avatar
                                 const avatarSrc = isGroup ? room.roomProfile : (sender?.profilePicture || '');

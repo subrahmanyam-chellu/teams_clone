@@ -6,6 +6,7 @@ import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import VideocamIcon from '@mui/icons-material/Videocam';
 
 const getAttachmentsFromMediaUrl = (mediaUrls) => {
   if (!mediaUrls || !Array.isArray(mediaUrls)) return [];
@@ -27,7 +28,7 @@ const getAttachmentsFromMediaUrl = (mediaUrls) => {
   });
 };
 
-const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentUser, isSender, onReply, onReact, onEditMessage, onDeleteMessage }) => {
+const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentUser, isSender, onReply, onReact, onEditMessage, onDeleteMessage, onJoinCall }) => {
   const attachmentsList = message.attachments || getAttachmentsFromMediaUrl(message.mediaUrl);
   
   // Popover and Dialog states
@@ -264,9 +265,54 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
                    <Button size="small" variant="contained" onClick={handleSaveEdit} sx={{ bgcolor: '#a3f96d', color: '#000', textTransform: 'none', fontWeight: 'bold', '&:hover': { bgcolor: '#8ee05c' } }}>Save</Button>
                  </Box>
                </Box>
-             ) : (
-               message.content && <Typography>{message.content}</Typography>
-             )}
+              ) : message.isCallMessage ? (
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: 1.5, 
+                    p: 1.5, 
+                    bgcolor: '#222', 
+                    borderRadius: '10px', 
+                    border: '1px solid #444',
+                    minWidth: '220px',
+                    mt: 0.5
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Avatar sx={{ bgcolor: 'rgba(163, 249, 109, 0.2)', color: '#a3f96d', width: 36, height: 36 }}>
+                      <VideocamIcon style={{ fontSize: '1.2rem' }} />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#fff' }}>
+                        Video Call
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#aaa' }}>
+                        Started a call
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    fullWidth
+                    onClick={onJoinCall}
+                    sx={{
+                      bgcolor: '#a3f96d',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      textTransform: 'none',
+                      fontSize: '0.8rem',
+                      py: 0.5,
+                      '&:hover': { bgcolor: '#8ee05c' }
+                    }}
+                  >
+                    Join Meeting
+                  </Button>
+                </Box>
+              ) : (
+                message.content && <Typography>{message.content}</Typography>
+              )}
 
             {/* Attachments */}
             {attachmentsList.map((att, idx) => (

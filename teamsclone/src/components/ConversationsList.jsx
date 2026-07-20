@@ -110,6 +110,7 @@ const ConversationsList = ({ setRoom, activeRoomId, refreshTrigger, onNewChatCli
   // Listen to socket receiveMessage events to update sidebar
   useEffect(() => {
     const handleReceiveMessage = (newMessage) => {
+      if (newMessage && newMessage.isCallMessage) return; // Ignore call alerts in conversation list previews
       setRooms((prevRooms) => {
         const msgRoomId = (newMessage.roomId?.toString() || newMessage.roomId);
         const roomToUpdate = prevRooms.find(r => (r._id?.toString() || r._id) === msgRoomId);
