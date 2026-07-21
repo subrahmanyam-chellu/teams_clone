@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const db = require("./config/db");
 const http = require("http");
+const https = require("https");
 const { Server } = require("socket.io");
 const { socketAuth } = require("./middlewares/auth");
 const userRoutes = require("./routes/v1/userRoutes");
@@ -277,6 +278,22 @@ io.on("connection", async (socket) => {
 
 server.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
+
+  // Render free tier keep-alive: ping self every 10 minutes
+  const selfUrl = process.env.SELF_URL;
+  if (selfUrl) {
+    console.log(`Keep-alive active: Pinging ${selfUrl} every 10 minutes.`);
+    setInterval(() => {
+      const client = selfUrl.startsWith("https") ? https : http;
+      client.get(selfUrl, (res) => {
+        console.log(`Keep-alive self-ping status: ${res.statusCode}`);
+      }).on("error", (err) => {
+        console.error("Keep-alive self-ping error:", err.message);
+      });
+    }, 10 * 60 * 1000); // 10 minutes
+  } else {
+    console.log("No SELF_URL environment variable configured; skipping keep-alive loop.");
+  }
 });
 
 db().then(async () => {
