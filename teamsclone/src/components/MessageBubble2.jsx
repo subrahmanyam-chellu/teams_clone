@@ -34,11 +34,11 @@ const MessageBubble2 = ({ message, isSender, onReply, onReact }) => {
       {/* Avatar only for received messages in 1-to-1 */}
       {!isSender && (
         <Avatar
-          src={message.sender?.profilePic}
-          alt={message.sender?.username}
-          sx={{ mr: 1 }}
+          src={message.sender?.profilePicture}
+          alt={message.sender ? `${message.sender.firstName} ${message.sender.lastName}` : "User Profile"}
+          sx={{ mr: 1, bgcolor: '#a3f96d', color: '#000', fontWeight: 'bold' }}
         >
-          {message.sender?.username?.[0]}
+          {message.sender ? `${message.sender.firstName?.[0]?.toUpperCase() || ''}${message.sender.lastName?.[0]?.toUpperCase() || ''}` : '?'}
         </Avatar>
       )}
 

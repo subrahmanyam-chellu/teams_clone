@@ -94,17 +94,21 @@ const Forms = ({ isLogin, setIsLogin, isRegister, setIsRegister }) => {
     return (
         <>
         {loading &&<CircularIndeterminate texts='Loading...'/>}
-        <Box sx={{ justifySelf: 'center', border: '2px solid cyan', borderRadius: '15px', p: 2, justifyContent: 'center', '&:hover':{boxShadow: '3px 3px 5px 2px #7db8c2',transform: 'translateY(-5px)'} }}>
-            <Box sx={{ width: '95%', display: 'flex', justifyContent: 'space-between', my: 3, p: 1, border: '2px solid cyan', borderRadius: '15px' }}>
+        <Box sx={{ justifySelf: 'center', border: '1px solid #444', bgcolor: '#151515', borderRadius: '15px', p: 3, width: '400px', justifyContent: 'center', '&:hover':{boxShadow: '0 0 20px rgba(163, 249, 109, 0.25)', transform: 'translateY(-3px)', transition: 'all 0.3s ease'} }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, p: 0.5, border: '1px solid #333', borderRadius: '12px', bgcolor: '#1E1E1E' }}>
                 <Button
                     variant={isRegister ? "contained" : "outlined"}
                     onClick={()=>{toggleRegister(); validate();}}
                     sx={{
                         flex: 1,
                         border: '0px',
+                        color: isRegister ? '#000' : '#fff',
+                        fontWeight: 'bold',
+                        textTransform: 'none',
                         background: isRegister
-                            ? "linear-gradient(to right, rgba(230, 0, 255, 0.899), rgba(0, 221, 255, 0.765))"
-                            : "none", borderRadius: '10px'
+                            ? "linear-gradient(to right, #1c34bb, #a3f96d)"
+                            : "none", borderRadius: '8px',
+                        '&:hover': { border: '0px' }
                     }}
                 >
                     Register
@@ -115,9 +119,13 @@ const Forms = ({ isLogin, setIsLogin, isRegister, setIsRegister }) => {
                     sx={{
                         flex: 1,
                         border: '0px',
+                        color: isLogin ? '#000' : '#fff',
+                        fontWeight: 'bold',
+                        textTransform: 'none',
                         background: isLogin
-                            ? "linear-gradient(to right, rgba(230, 0, 255, 0.899), rgba(0, 221, 255, 0.765))"
-                            : "none", borderRadius: '10px'
+                            ? "linear-gradient(to right, #1c34bb, #a3f96d)"
+                            : "none", borderRadius: '8px',
+                        '&:hover': { border: '0px' }
                     }}
                 >
                     Login
@@ -127,102 +135,204 @@ const Forms = ({ isLogin, setIsLogin, isRegister, setIsRegister }) => {
 
             {/* Forms */}
             {isRegister && (
-                <Box component="form" onSubmit={handleRegister} sx={{ mt: 3, borderRadius: '15px', backgroundColor: '#9e9e4d', p: 2 }}>
+                <Box component="form" onSubmit={handleRegister} sx={{ mt: 3, borderRadius: '15px', backgroundColor: '#1E1E1E', border: '1px solid #333', p: 3 }}>
                     <TextField
                         fullWidth
-                        label="firstName"
-                        name="First Name"
+                        label="First Name"
                         value={firstName}
                         onChange={(e) => { setFirstName(e.target.value) }}
                         required
-                        sx={{ mb: 2 }}
+                        sx={{
+                            mb: 2,
+                            '& .MuiOutlinedInput-root': {
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputLabel-root': { color: '#aaa' },
+                            '& .MuiInputLabel-root.Mui-focused': { color: '#a3f96d' }
+                        }}
                     />
                     <TextField
                         fullWidth
-                        label="lastName"
-                        name="Last Name"
+                        label="Last Name"
                         value={lastName}
                         onChange={(e) => { setLastName(e.target.value) }}
                         required
-                        sx={{ mb: 2 }}
+                        sx={{
+                            mb: 2,
+                            '& .MuiOutlinedInput-root': {
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputLabel-root': { color: '#aaa' },
+                            '& .MuiInputLabel-root.Mui-focused': { color: '#a3f96d' }
+                        }}
                     />
                     <TextField
                         fullWidth
                         label="Email"
-                        name="email"
                         type="email"
                         value={email}
                         onChange={(e) => { setEmail(e.target.value) }}
                         required
-                        sx={{ mb: 2 }}
+                        sx={{
+                            mb: 2,
+                            '& .MuiOutlinedInput-root': {
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputLabel-root': { color: '#aaa' },
+                            '& .MuiInputLabel-root.Mui-focused': { color: '#a3f96d' }
+                        }}
                     />
                     <TextField
                         fullWidth
-                        label="phoneNo"
-                        name="phoneNo"
+                        label="Phone Number"
                         type="text"
                         value={phoneNo}
                         onChange={(e) => { setPhoneNo(e.target.value) }}
                         required
-                        sx={{ mb: 2 }}
+                        sx={{
+                            mb: 2,
+                            '& .MuiOutlinedInput-root': {
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputLabel-root': { color: '#aaa' },
+                            '& .MuiInputLabel-root.Mui-focused': { color: '#a3f96d' }
+                        }}
                     />
                     <TextField
                         fullWidth
                         label="Password"
-                        name="password"
                         type="password"
                         value={password}
                         onChange={(e) => { setPassword(e.target.value) }}
                         required
-                        sx={{ mb: 2 }}
+                        sx={{
+                            mb: 2,
+                            '& .MuiOutlinedInput-root': {
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputLabel-root': { color: '#aaa' },
+                            '& .MuiInputLabel-root.Mui-focused': { color: '#a3f96d' }
+                        }}
                     />
                     <TextField
                         fullWidth
                         label="Re-enter Password"
-                        name="repassword"
                         type="password"
                         value={repassword}
                         onChange={(e) => { setRepassword(e.target.value) }}
                         required
-                        sx={{ mb: 3 }}
+                        sx={{
+                            mb: 3,
+                            '& .MuiOutlinedInput-root': {
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputLabel-root': { color: '#aaa' },
+                            '& .MuiInputLabel-root.Mui-focused': { color: '#a3f96d' }
+                        }}
                     />
                     {
                         error &&
                         <Typography color='error' sx={{ textAlign: 'center', textTransform: 'none', my: '8px' }}>{error}</Typography>
                     }
-                    <Button type="submit" fullWidth variant="contained" color='success' sx={{ textTransform: 'none', fontSize: 18, fontWeight: 500, borderRadius: '10px' }}>Register</Button>
+                    <Button 
+                        type="submit" 
+                        fullWidth 
+                        variant="contained" 
+                        sx={{ 
+                            textTransform: 'none', 
+                            fontSize: 18, 
+                            fontWeight: 'bold', 
+                            borderRadius: '10px',
+                            bgcolor: '#a3f96d',
+                            color: '#000',
+                            '&:hover': { bgcolor: '#8ee05c' }
+                        }}
+                    >
+                        Register
+                    </Button>
                 </Box>
             )}
 
             {isLogin && (
-                <Box component="form" onSubmit={handleLogin} sx={{ mt: 3, borderRadius: '15px', backgroundColor: '#d3cfcfde', p: 2 }}>
+                <Box component="form" onSubmit={handleLogin} sx={{ mt: 3, borderRadius: '15px', backgroundColor: '#1E1E1E', border: '1px solid #333', p: 3 }}>
                     <TextField
                         fullWidth
                         label="Email"
-                        name="email"
                         type="email"
                         value={email}
                         onChange={(e) => { setEmail(e.target.value) }}
                         required
-                        sx={{ mb: 2 }}
+                        sx={{
+                            mb: 2,
+                            '& .MuiOutlinedInput-root': {
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputLabel-root': { color: '#aaa' },
+                            '& .MuiInputLabel-root.Mui-focused': { color: '#a3f96d' }
+                        }}
                     />
                     <TextField
                         fullWidth
                         label="Password"
-                        name="password"
                         type="password"
                         value={password}
                         onChange={(e) => { setPassword(e.target.value) }}
                         required
-                        sx={{ mb: 3 }}
+                        sx={{
+                            mb: 3,
+                            '& .MuiOutlinedInput-root': {
+                                '& input': { color: '#f0f0f0' },
+                                '& fieldset': { borderColor: '#444' },
+                                '&:hover fieldset': { borderColor: '#666' },
+                                '&.Mui-focused fieldset': { borderColor: '#a3f96d' },
+                            },
+                            '& .MuiInputLabel-root': { color: '#aaa' },
+                            '& .MuiInputLabel-root.Mui-focused': { color: '#a3f96d' }
+                        }}
                     />
                     {
-                        error&&
+                        errorL &&
                         <Typography color='error' sx={{textAlign:'center', textTransform:'none', my:'8px'}}>{errorL}</Typography>
                     } 
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Button type="button" variant="text" sx={{ textTransform: 'none', fontSize: 12, fontWeight: 500 }}>Forgot Password</Button>
-                        <Button type="submit" variant="contained" color='success' sx={{ textTransform: 'none', fontSize: 18, fontWeight: 500, borderRadius: '10px' }}>Login</Button>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Button type="button" variant="text" sx={{ textTransform: 'none', fontSize: 12, fontWeight: 'bold', color: '#aaa', '&:hover': { color: '#a3f96d' } }}>Forgot Password</Button>
+                        <Button 
+                            type="submit" 
+                            variant="contained" 
+                            sx={{ 
+                                textTransform: 'none', 
+                                fontSize: 18, 
+                                fontWeight: 'bold', 
+                                borderRadius: '10px',
+                                bgcolor: '#a3f96d',
+                                color: '#000',
+                                '&:hover': { bgcolor: '#8ee05c' },
+                                px: 3
+                            }}
+                        >
+                            Login
+                        </Button>
                     </Box>
                 </Box>
             )}

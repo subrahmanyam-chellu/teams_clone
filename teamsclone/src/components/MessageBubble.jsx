@@ -163,11 +163,11 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
       {/* Avatar only for received messages in groups */}
       {!isSender && (roomType === 'group' || message.roomType === 'group') && (
         <Avatar
-          src={message.sender?.profilePic}
-          alt={message.sender?.username}
-          sx={{ mr: 1 }}
+          src={message.sender?.profilePicture}
+          alt={message.sender ? `${message.sender.firstName} ${message.sender.lastName}` : "User Profile"}
+          sx={{ mr: 1, bgcolor: '#a3f96d', color: '#000', fontWeight: 'bold' }}
         >
-          {message.sender?.username?.[0]}
+          {message.sender ? `${message.sender.firstName?.[0]?.toUpperCase() || ''}${message.sender.lastName?.[0]?.toUpperCase() || ''}` : '?'}
         </Avatar>
       )}
 
@@ -455,8 +455,8 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
               <SentimentSatisfiedAltIcon fontSize="small" />
             </IconButton>
 
-            {/* Show edit button to sender */}
-            {isSender && (
+            {/* Show edit button to sender or super admin */}
+            {(isSender || currentUser?.role === 'SUPER_ADMIN') && (
               <IconButton
                 size="small"
                 onClick={() => setIsEditing(true)}
@@ -467,8 +467,8 @@ const MessageBubble = ({ message, parentMessage, roomType, roomMembers, currentU
               </IconButton>
             )}
 
-            {/* Show delete button to sender or admin */}
-            {(isSender || currentUser?.role === 'ADMIN') && (
+            {/* Show delete button to sender, admin, or super admin */}
+            {(isSender || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
               <IconButton
                 size="small"
                 onClick={handleDelete}

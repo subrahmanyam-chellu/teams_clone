@@ -57,6 +57,14 @@ const messageSchema = new mongoose.Schema({
     isCallMessage: {
         type: Boolean,
         default: false
+    },
+    isFlagged: {
+        type: Boolean,
+        default: false
+    },
+    flagReason: {
+        type: String,
+        default: ""
     }
 }, { timestamps: true });
 

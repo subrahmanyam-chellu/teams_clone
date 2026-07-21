@@ -16,6 +16,7 @@ const User = require("./models/User");
 const Rooms = require("./models/Rooms");
 const ErrorHandler = require("./helper/ErrorHandler");
 const { statusCodes } = require("./helper/statusCodes");
+const adminRoutes = require("./routes/v1/adminRoutes");
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use("/api/v1/rooms", roomRoutes);
 app.use("/api/v1/messages", messageRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/meetings", meetingRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello, World!");
@@ -50,6 +52,8 @@ app.get("/", (req, res) => {
 io.use(socketAuth);
 
 const activeCalls = new Map();
+global.activeCalls = activeCalls;
+global.io = io;
 
 // Socket.IO events
 io.on("connection", async (socket) => {
@@ -71,7 +75,7 @@ io.on("connection", async (socket) => {
       if (!room) return;
 
       const mIds = room.members.map(id => id.toString());
-      if (!mIds.includes(userId.toString())) {
+      if (!mIds.includes(userId.toString()) && socket.user?.role !== 'SUPER_ADMIN') {
         console.log(`Access denied: User ${userId} is not a member of room ${roomId}`);
         return;
       }
@@ -219,7 +223,7 @@ io.on("connection", async (socket) => {
       if (!room) return;
 
       const mIds = room.members.map(id => id.toString());
-      if (!mIds.includes(userId.toString())) {
+      if (!mIds.includes(userId.toString()) && socket.user?.role !== 'SUPER_ADMIN') {
         console.log(`Access denied: User ${userId} is not a member of room ${data.roomId}`);
         return;
       }
@@ -239,7 +243,7 @@ io.on("connection", async (socket) => {
       if (!room) return;
 
       const mIds = room.members.map(id => id.toString());
-      if (!mIds.includes(userId.toString())) {
+      if (!mIds.includes(userId.toString()) && socket.user?.role !== 'SUPER_ADMIN') {
         console.log(`Access denied: User ${userId} is not a member of room ${data.roomId}`);
         return;
       }

@@ -10,6 +10,7 @@ import ChatPage from './pages/chatpage/ChatPage'
 import TeamsPage from './pages/teamspage/TeamsPage'
 import NotificationsPage from './pages/notificationspage/NotificationsPage'
 import SchedulePage from './pages/schedulepage/SchedulePage'
+import AdminDashboard from './pages/admin/AdminDashboard'
 import JoinRoom from './pages/joinroom/JoinRoom'
 import ResponsiveAppBar from './components/ResponsiveAppBar'
 
@@ -23,6 +24,7 @@ function App() {
         <Route path="/teams" element={<TeamsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/schedule" element={<SchedulePage />} />
+        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/join/:inviteCode" element={<JoinRoom />} />
       </Routes>
     </Router>

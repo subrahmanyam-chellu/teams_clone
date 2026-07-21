@@ -29,6 +29,9 @@ const loginUser = async (email, password) => {
         if (!user) {
             return { statusCode: statusCodes.NOT_FOUND, message: "email not found" };
         }
+        if (user.isBlocked) {
+            return { statusCode: statusCodes.FORBIDDEN, message: "Your account has been blocked by the administrator." };
+        }
         if (!await bcrypt.compare(password, user.password)) {
             return { statusCode: statusCodes.UNAUTHORIZED, message: "invalid password" };
         }
@@ -42,7 +45,7 @@ const loginUser = async (email, password) => {
 // get user by id
 const getUserById = async (id, user) => {
     try {
-        if (user.id == id || user.role === "ADMIN") {
+        if (user.id == id || user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
             const user = await User.findById(id).lean();
             const { password, ...rest } = user;
             if (!user) {
@@ -65,7 +68,7 @@ const updateUser = async (data) => {
         if (!user) {
             return { statusCode: statusCodes.NOT_FOUND, message: "user not found" };
         }
-        if (data.user.id == id || data.user.role === "ADMIN") {
+        if (data.user.id == id || data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
             const updatedUser = await User.findByIdAndUpdate(id, data.body, { returnDocument: 'after' });
             return { statusCode: statusCodes.OK, data: updatedUser, message: "user details updated successfully" };
         }
@@ -87,7 +90,7 @@ const updateUserProfilePicture = async (req) => {
             return { statusCode: statusCodes.NOT_FOUND, message: "User not found" };
         }
 
-        if (req.user.id === id || req.user.role === "ADMIN") {
+        if (req.user.id === id || req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN") {
 
             if (!req.file) {
                 return { statusCode: statusCodes.BAD_REQUEST, message: "No file uploaded" };
@@ -129,7 +132,7 @@ const updateUserPassword = async (req) => {
             return { statusCode: statusCodes.NOT_FOUND, message: "User not found" };
         }
 
-        if (req.user.id === id || req.user.role === "ADMIN") {
+        if (req.user.id === id || req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN") {
             const isMatch = await bcrypt.compare(oldPassword, user.password);
             if (!isMatch) {
                 return { statusCode: statusCodes.UNAUTHORIZED, message: "Old password is incorrect" };
@@ -153,7 +156,7 @@ const deleteUser = async (req) => {
         if (!user) {
             return { statusCode: statusCodes.NOT_FOUND, message: "User not found" };
         }
-        if (req.user.id === id || req.user.role === "ADMIN") {
+        if (req.user.id === id || req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN") {
             await User.findByIdAndDelete(id);
             return { statusCode: statusCodes.OK, message: "User deleted successfully" };
         }
@@ -166,7 +169,7 @@ const deleteUser = async (req) => {
 //get-all users
 const getAllUsers = async (req, res, next) => {
     try {
-        if (req.user.role === "ADMIN") {
+        if (req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN") {
             const result = await User.find().lean();
             const result1 = result.map((item) => {
                 const { password, ...rest } = item;
@@ -185,7 +188,7 @@ const getAllUsers = async (req, res, next) => {
 //delete all users
 const deleteAllUsers = async (req, res, next) => {
     try {
-        if (req.user.role === "ADMIN") {
+        if (req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN") {
             const result = await User.deleteMany();
             return { statusCode: statusCodes.OK, data: result, messages: "all users deleted successfully" };
         } else {

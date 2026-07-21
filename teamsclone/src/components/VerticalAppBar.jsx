@@ -8,6 +8,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import socket from './Socket';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 export default function VerticalAppBar() {
     const navigate = useNavigate();
@@ -18,6 +19,13 @@ export default function VerticalAppBar() {
     const isTeamsActive = location.pathname === '/teams';
     const isNotificationsActive = location.pathname === '/notifications';
     const isScheduleActive = location.pathname === '/schedule';
+    const isAdminActive = location.pathname === '/admin';
+    const [currentUser, setCurrentUser] = React.useState(null);
+
+    React.useEffect(() => {
+        const userObj = JSON.parse(localStorage.getItem("user") || "null");
+        setCurrentUser(userObj);
+    }, [location.pathname]);
 
     const fetchUnreadCount = async () => {
         try {
@@ -66,25 +74,32 @@ export default function VerticalAppBar() {
                     display: 'flex',
                     flexDirection: 'column',
                     width: '48px',
-                    height: 'calc(100vh - 51px)',
-                    bgcolor: '#1c34bb',
+                    height: 'calc(100vh - 48px)',
+                    background: 'linear-gradient(to bottom, rgba(28, 52, 187, 0.95), rgba(15, 18, 30, 0.98))',
+                    backdropFilter: 'blur(20px)',
                     color: '#fff',
                     position: 'fixed',
                     top: '48px',
                     left: 0,
-                    borderLeft:'1px solid white',
-                    gap: 4,
-                    mb:'1px'
+                    borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+                    gap: 4
                 }}
             >
-                <Toolbar sx={{ minHeight: '48px', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 8, mt: 8 }}>
+                <Toolbar sx={{ minHeight: '48px', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 6, mt: 5 }}>
                     <Badge badgeContent={unreadCount} color="error" overlap="circular">
                         <NotificationsIcon 
                             onClick={() => navigate('/notifications')} 
                             sx={{ 
                                 cursor: 'pointer',
+                                fontSize: '1.5rem',
                                 color: isNotificationsActive ? '#a3f96d' : '#fff',
-                                '&:hover': { color: '#a3f96d' }
+                                filter: isNotificationsActive ? 'drop-shadow(0 0 8px rgba(163, 249, 109, 0.6))' : 'none',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': { 
+                                    color: '#a3f96d',
+                                    transform: 'scale(1.18)',
+                                    filter: 'drop-shadow(0 0 10px rgba(163, 249, 109, 0.8))'
+                                }
                             }}
                         />
                     </Badge>
@@ -92,27 +107,64 @@ export default function VerticalAppBar() {
                         onClick={() => navigate('/chat')} 
                         sx={{ 
                             cursor: 'pointer', 
+                            fontSize: '1.5rem',
                             color: isChatActive ? '#a3f96d' : '#fff',
-                            '&:hover': { color: '#a3f96d' } 
+                            filter: isChatActive ? 'drop-shadow(0 0 8px rgba(163, 249, 109, 0.6))' : 'none',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': { 
+                                color: '#a3f96d',
+                                transform: 'scale(1.18)',
+                                filter: 'drop-shadow(0 0 10px rgba(163, 249, 109, 0.8))'
+                            }
                         }} 
                     />
                     <GroupIcon 
                         onClick={() => navigate('/teams')} 
                         sx={{ 
                             cursor: 'pointer', 
+                            fontSize: '1.5rem',
                             color: isTeamsActive ? '#a3f96d' : '#fff',
-                            '&:hover': { color: '#a3f96d' } 
+                            filter: isTeamsActive ? 'drop-shadow(0 0 8px rgba(163, 249, 109, 0.6))' : 'none',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': { 
+                                color: '#a3f96d',
+                                transform: 'scale(1.18)',
+                                filter: 'drop-shadow(0 0 10px rgba(163, 249, 109, 0.8))'
+                            }
                         }} 
                     />
-                    {/* <CallIcon sx={{ cursor: 'pointer', '&:hover': { color: '#a3f96d' } }} /> */}
                     <CalendarMonthIcon 
                         onClick={() => navigate('/schedule')}
                         sx={{ 
                             cursor: 'pointer', 
+                            fontSize: '1.5rem',
                             color: isScheduleActive ? '#a3f96d' : '#fff',
-                            '&:hover': { color: '#a3f96d' } 
+                            filter: isScheduleActive ? 'drop-shadow(0 0 8px rgba(163, 249, 109, 0.6))' : 'none',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': { 
+                                color: '#a3f96d',
+                                transform: 'scale(1.18)',
+                                filter: 'drop-shadow(0 0 10px rgba(163, 249, 109, 0.8))'
+                            }
                         }} 
                     />
+                    {currentUser?.role === 'SUPER_ADMIN' && (
+                        <AdminPanelSettingsIcon 
+                            onClick={() => navigate('/admin')}
+                            sx={{ 
+                                cursor: 'pointer', 
+                                fontSize: '1.5rem',
+                                color: isAdminActive ? '#a3f96d' : '#fff',
+                                filter: isAdminActive ? 'drop-shadow(0 0 8px rgba(163, 249, 109, 0.6))' : 'none',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': { 
+                                    color: '#a3f96d',
+                                    transform: 'scale(1.18)',
+                                    filter: 'drop-shadow(0 0 10px rgba(163, 249, 109, 0.8))'
+                                }
+                            }} 
+                        />
+                    )}
                 </Toolbar>
             </Box>
         </Box>

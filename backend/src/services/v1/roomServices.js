@@ -43,7 +43,7 @@ const createRoom = async (data) => {
 //deletion of room
 const deleteRoom = async (data) => {
     try {
-        if (data.user.role === "ADMIN") {
+        if (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
             const result = await Rooms.findByIdAndDelete(data.params.id);
             console.log(result);
             return { statusCode: statusCodes.OK, message: `deleted successfully` };
@@ -63,7 +63,7 @@ const updateRoomName = async (data) => {
             return { statusCode: statusCodes.NOT_FOUND, message: "Room not found" };
         }
 
-        if (data.user.role === "ADMIN") {
+        if (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
             const updatedRoom = await Rooms.findByIdAndUpdate(
                 id,
                 { roomName: data.body.roomName },
@@ -89,7 +89,7 @@ const updateRoomProfile = async (req) => {
             return { statusCode: statusCodes.NOT_FOUND, message: "Room not found" };
         }
 
-        if (req.user.role === "ADMIN") {
+        if (req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN") {
 
             if (!req.file) {
                 return { statusCode: statusCodes.BAD_REQUEST, message: "No file uploaded" };
@@ -130,7 +130,7 @@ const addMembers = async (data) => {
             return { statusCode: statusCodes.NOT_FOUND, message: "Room not found" };
         }
 
-        if (data.user.role === "ADMIN") {
+        if (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
             const updatedRoom = await Rooms.findByIdAndUpdate(
                 id,
                 [
@@ -167,7 +167,7 @@ const deleteMembers = async (data) => {
             return { statusCode: statusCodes.NOT_FOUND, message: "Room not found" };
         }
 
-        if (data.user.role === "ADMIN") {
+        if (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
             const updatedRoom = await Rooms.findByIdAndUpdate(
                 id,
                 [
@@ -197,7 +197,11 @@ const deleteMembers = async (data) => {
 const getMyRooms = async (req) => {
     try {
         const userId = req.user.id;
-        const rooms = await Rooms.find({ members: userId })
+        const query = req.user.role === 'SUPER_ADMIN'
+            ? { $or: [{ members: userId }, { roomType: 'group' }] }
+            : { members: userId };
+
+        const rooms = await Rooms.find(query)
             .populate("members", "firstName lastName email profilePicture")
             .populate("lastMessage");
 

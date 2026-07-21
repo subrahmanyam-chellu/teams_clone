@@ -28,8 +28,12 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['ADMIN', 'MEMBER', 'GUEST'], 
+        enum: ['SUPER_ADMIN', 'ADMIN', 'MEMBER', 'GUEST'], 
         default: 'MEMBER'
+    },
+    isBlocked: {
+        type: Boolean,
+        default: false
     },
     isOnline: {
         type:Boolean,

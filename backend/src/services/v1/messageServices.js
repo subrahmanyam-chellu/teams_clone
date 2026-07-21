@@ -104,7 +104,7 @@ const editMessage = async (data) => {
         const message = await Messages.findById(data.params.id);
         if (!message)
             return new ErrorHandler(statusCodes.NOT_FOUND, "message is not found");
-        if (data.user.id === message.sender.toString() || data.user.role === "ADMIN") {
+        if (data.user.id === message.sender.toString() || data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
             const result = await Messages.findByIdAndUpdate(data.params.id, { $set: { content: data.body.content, edited: true } }, { returnDocument: "after" });
             return { statusCode: statusCodes.OK, data: result, message: "message updated successfully" };
         }
@@ -121,7 +121,7 @@ const deleteMessage = async (data) => {
         const message = await Messages.findById(data.params.id);
         if (!message)
             return new ErrorHandler(statusCodes.NOT_FOUND, "message is not found");
-        if (data.user.id === message.sender.toString() || data.user.role === "ADMIN") {
+        if (data.user.id === message.sender.toString() || data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
             const result = await Messages.findByIdAndUpdate(data.params.id, { $set: { deleted: true, content: "", mediaUrl: [] } }, { returnDocument: "after" });
             return { statusCode: statusCodes.OK, data: result, message: "message deleted successfully" };
         }
@@ -151,7 +151,7 @@ const getMessagesByRoomId = async (data) => {
         const rooms = await Rooms.findById(data.params.roomId);
         if (!rooms)
             return new ErrorHandler(statusCodes.NOT_FOUND, "room is not found");
-        else if (!rooms.members.some(m => m.toString() === data.user.id) && data.user.role !== "ADMIN") {
+        else if (!rooms.members.some(m => m.toString() === data.user.id) && data.user.role !== "ADMIN" && data.user.role !== "SUPER_ADMIN") {
             return new ErrorHandler(statusCodes.FORBIDDEN, "you are not a member of this room");
         }
         const result = await Messages.find({ roomId: data.params.roomId })
@@ -169,7 +169,7 @@ const getMessagesByRoomId = async (data) => {
 //getting all messages 
 const getAllMessages = async (data) => {
     try {
-        if (data.user.role !== "ADMIN") {
+        if (data.user.role !== "ADMIN" && data.user.role !== "SUPER_ADMIN") {
             return new ErrorHandler(statusCodes.FORBIDDEN, "you are not authorized to access this route");
         }
         const result = await Messages.find().sort({ createdAt: -1 }).skip((data.body.page - 1) * data.body.limit).limit(data.body.limit);
